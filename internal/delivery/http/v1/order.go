@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"time"
 
 	"frappuccino/internal/dto/order"
 )
@@ -209,4 +210,74 @@ func (h *OrderHandler) CloseOrder(w http.ResponseWriter, r *http.Request) {
 		h.logger.Println("method:CloseOrder, function:json encode", err.Error())
 		http.Error(w, "Error encoding response", http.StatusInternalServerError)
 	}
+}
+
+func (h *OrderHandler) GetNumberOfOrderedItems(w http.ResponseWriter, r *http.Request) {
+	// Parse query parameters
+	startDateStr := r.URL.Query().Get("startDate")
+	endDateStr := r.URL.Query().Get("endDate")
+
+	// Initialize date variables
+	var startDate, endDate *time.Time
+
+	// Parse start date if provided
+	if startDateStr != "" {
+		parsedStartDate, err := parseDate(startDateStr)
+		if err != nil {
+			h.logger.Printf("Invalid startDate format: %v", err)
+			http.Error(w, "Invalid startDate format. Please use YYYY-MM-DD format.", http.StatusBadRequest)
+			return
+		}
+		startDate = &parsedStartDate
+	}
+
+	// Parse end date if provided
+	if endDateStr != "" {
+		parsedEndDate, err := parseDate(endDateStr)
+		if err != nil {
+			h.logger.Printf("Invalid endDate format: %v", err)
+			http.Error(w, "Invalid endDate format. Please use YYYY-MM-DD format.", http.StatusBadRequest)
+			return
+		}
+		endDate = &parsedEndDate
+	}
+
+	// Call service method to get the data
+	itemCounts, err := h.orderService.GetNumberOfOrderedItems(r.Context(), startDate, endDate)
+	if err != nil {
+		h.logger.Printf("Error getting number of ordered items: %v", err)
+		http.Error(w, "Failed to retrieve ordered item counts", http.StatusInternalServerError)
+		return
+	}
+
+	// Return the response
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(itemCounts); err != nil {
+		h.logger.Printf("Error encoding response: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+}
+
+// parseDate parses a date string in various formats
+func parseDate(dateStr string) (time.Time, error) {
+	// Try parsing different formats
+	formats := []string{
+		"2006-01-02", // YYYY-MM-DD
+		"02.01.2006", // DD.MM.YYYY
+		"01/02/2006", // MM/DD/YYYY
+	}
+
+	var parsedTime time.Time
+	var err error
+
+	for _, format := range formats {
+		parsedTime, err = time.Parse(format, dateStr)
+		if err == nil {
+			return parsedTime, nil
+		}
+	}
+
+	// If all parsing attempts failed, return the last error
+	return time.Time{}, err
 }

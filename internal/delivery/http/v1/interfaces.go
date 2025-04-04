@@ -2,6 +2,7 @@ package v1
 
 import (
 	"context"
+	"time"
 
 	"frappuccino/internal/dto/inventory"
 	"frappuccino/internal/dto/menu"
@@ -36,4 +37,5 @@ type orderInterface interface {
 	GetAllOrderStatusHistory(ctx context.Context) ([]orderdto.OrderStatusHistoryResponse, error)
 	DeleteOrder(ctx context.Context, id string) (string, error)
 	CloseOrder(ctx context.Context, orderID string, reason string) error
+	GetNumberOfOrderedItems(ctx context.Context, startDate, endDate *time.Time) (map[string]int, error)
 }

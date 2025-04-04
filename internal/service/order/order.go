@@ -413,3 +413,29 @@ func (s *OrderService) CloseOrder(ctx context.Context, orderID string, reason st
 
 	return nil
 }
+
+func (s *OrderService) GetNumberOfOrderedItems(ctx context.Context, startDate, endDate *time.Time) (map[string]int, error) {
+	// Call the repository to get the data
+	itemCounts, err := s.orderRepo.GetNumberOfOrderedItems(ctx, startDate, endDate)
+	if err != nil {
+		s.logger.Printf("Error getting number of ordered items: %v", err)
+		return nil, err
+	}
+
+	// Get the list of all menu items to ensure all items are represented in the response
+	menuItems, err := s.menuRepo.GetMenuItem(ctx)
+	if err != nil {
+		s.logger.Printf("Error getting menu items: %v", err)
+		// Not returning an error here, as we still have the order counts
+		// We'll just skip adding the zero counts for menu items that weren't ordered
+	} else {
+		// Ensure all menu items are in the result map with at least 0 count
+		for _, item := range menuItems {
+			if _, exists := itemCounts[item.Name]; !exists {
+				itemCounts[item.Name] = 0
+			}
+		}
+	}
+
+	return itemCounts, nil
+}

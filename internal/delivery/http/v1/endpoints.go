@@ -33,6 +33,7 @@ func setOrderRoutes(handler *OrderHandler, router *http.ServeMux) {
 	router.HandleFunc("GET /order-status-history", handler.GetAllOrderStatusHistory)
 	router.HandleFunc("DELETE /orders/{id}", handler.DeleteOrderRequest)
 	router.HandleFunc("POST /orders/{id}/close", handler.CloseOrder)
+	router.HandleFunc("GET /orders/numberOfOrderedItems", handler.GetNumberOfOrderedItems)
 }
 
 // func SetOrderHandler(router *http.ServeMux, orderService order.ServiceInterface, logger *log.Logger) {

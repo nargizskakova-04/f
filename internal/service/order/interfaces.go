@@ -2,6 +2,7 @@ package order
 
 import (
 	"context"
+	"time"
 
 	"frappuccino/internal/entity"
 )
@@ -15,6 +16,7 @@ type orderRepo interface {
 	UpdateOrder(ctx context.Context, orderID string, updates map[string]interface{}) error
 	GetAllOrderStatusHistory(ctx context.Context) ([]entity.OrderStatusHistory, error)
 	DeleteOrder(ctx context.Context, id string) (string, error)
+	GetNumberOfOrderedItems(ctx context.Context, startDate, endDate *time.Time) (map[string]int, error)
 }
 
 //	type ServiceInterface interface {
@@ -25,6 +27,7 @@ type orderRepo interface {
 // menuRepo defines methods for working with menu items and ingredients
 type menuRepo interface {
 	GetMenuItemIngredients(ctx context.Context, menuItemID string) ([]entity.MenuItemIngredient, error)
+	GetMenuItem(ctx context.Context) ([]entity.MenuItem, error)
 }
 
 // inventoryRepo defines methods for working with inventory

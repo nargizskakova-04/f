@@ -303,3 +303,73 @@ func (repo *OrderRepository) DeleteOrder(ctx context.Context, id string) (string
 
 	return id, err
 }
+
+func (repo *OrderRepository) GetNumberOfOrderedItems(
+	ctx context.Context,
+	startDate, endDate *time.Time,
+) (map[string]int, error) {
+	// Initialize the base query
+	query := `
+		SELECT m.name, SUM(oi.quantity) as total_quantity
+		FROM order_items oi
+		JOIN orders o ON oi.order_id = o.order_id
+		JOIN menu_items m ON oi.menu_item_id = m.menu_item_id
+		WHERE 1=1
+	`
+
+	// Add date filters if provided
+	var args []interface{}
+	var argIndex int = 1
+
+	if startDate != nil {
+		query += ` AND o.created_at >= $` + repo.nextArgIndex(&argIndex)
+		args = append(args, startDate)
+	}
+
+	if endDate != nil {
+		// Add one day to include the end date in the results (until end of the day)
+		endDatePlusDay := endDate.AddDate(0, 0, 1)
+		query += ` AND o.created_at < $` + repo.nextArgIndex(&argIndex)
+		args = append(args, endDatePlusDay)
+	}
+
+	// Group by menu item name
+	query += `
+		GROUP BY m.name
+		ORDER BY m.name
+	`
+
+	// Execute the query
+	rows, err := repo.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	// Process the results
+	result := make(map[string]int)
+
+	for rows.Next() {
+		var name string
+		var quantity int
+
+		if err := rows.Scan(&name, &quantity); err != nil {
+			return nil, err
+		}
+
+		result[name] = quantity
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+// Helper method to convert parameter index to string and increment it
+func (repo *OrderRepository) nextArgIndex(index *int) string {
+	current := *index
+	*index++
+	return string(rune('0' + current))
+}
