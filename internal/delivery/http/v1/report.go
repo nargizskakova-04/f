@@ -65,3 +65,46 @@ func (h *ReportHandler) SearchReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
+
+func (h *ReportHandler) GetOrderedItemsByPeriod(w http.ResponseWriter, r *http.Request) {
+	// Extract query parameters
+	period := r.URL.Query().Get("period")
+	if period == "" {
+		h.logger.Println("Period parameter is required")
+		http.Error(w, "Period parameter is required", http.StatusBadRequest)
+		return
+	}
+
+	month := r.URL.Query().Get("month")
+	year := r.URL.Query().Get("year")
+
+	// Validate required parameters
+	if period == "day" && month == "" {
+		h.logger.Println("Month parameter is required when period is day")
+		http.Error(w, "Month parameter is required when period is day", http.StatusBadRequest)
+		return
+	}
+
+	// Initialize request
+	req := report.OrderedItemsByPeriodRequest{
+		Period: period,
+		Month:  month,
+		Year:   year,
+	}
+
+	// Perform the query
+	response, err := h.reportService.GetOrderedItemsByPeriod(r.Context(), req)
+	if err != nil {
+		h.logger.Printf("Error getting ordered items by period: %v", err)
+		http.Error(w, "Error retrieving ordered items data", http.StatusInternalServerError)
+		return
+	}
+
+	// Return response
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		h.logger.Printf("Error encoding ordered items response: %v", err)
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+		return
+	}
+}

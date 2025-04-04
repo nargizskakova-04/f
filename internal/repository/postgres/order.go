@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"frappuccino/internal/dto/report"
 	"frappuccino/internal/entity"
 )
 
@@ -372,4 +373,114 @@ func (repo *OrderRepository) nextArgIndex(index *int) string {
 	current := *index
 	*index++
 	return string(rune('0' + current))
+}
+
+func (repo *OrderRepository) GetOrderedItemsByDay(ctx context.Context, month time.Month, year int) ([]report.DayCount, error) {
+	// Calculate the start and end dates for the given month and year
+	startDate := time.Date(year, month, 1, 0, 0, 0, 0, time.UTC)
+	endDate := startDate.AddDate(0, 1, 0)
+
+	query := `
+		SELECT 
+			EXTRACT(DAY FROM o.created_at) as day,
+			SUM(oi.quantity) as count
+		FROM 
+			orders o
+		JOIN 
+			order_items oi ON o.order_id = oi.order_id
+		WHERE 
+			o.created_at >= $1 AND o.created_at < $2
+			AND o.status != 'cancelled'
+		GROUP BY 
+			EXTRACT(DAY FROM o.created_at)
+		ORDER BY 
+			day
+	`
+
+	rows, err := repo.db.QueryContext(ctx, query, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []report.DayCount
+	for rows.Next() {
+		var dc report.DayCount
+		if err := rows.Scan(&dc.Day, &dc.Count); err != nil {
+			return nil, err
+		}
+		results = append(results, dc)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return results, nil
+}
+
+// GetOrderedItemsByMonth retrieves the number of items ordered by month within a specified year
+func (repo *OrderRepository) GetOrderedItemsByMonth(ctx context.Context, year int) ([]report.MonthCount, error) {
+	// Calculate the start and end dates for the given year
+	startDate := time.Date(year, 1, 1, 0, 0, 0, 0, time.UTC)
+	endDate := startDate.AddDate(1, 0, 0)
+
+	query := `
+		SELECT 
+			EXTRACT(MONTH FROM o.created_at) as month,
+			SUM(oi.quantity) as count
+		FROM 
+			orders o
+		JOIN 
+			order_items oi ON o.order_id = oi.order_id
+		WHERE 
+			o.created_at >= $1 AND o.created_at < $2
+			AND o.status != 'cancelled'
+		GROUP BY 
+			EXTRACT(MONTH FROM o.created_at)
+		ORDER BY 
+			month
+	`
+
+	rows, err := repo.db.QueryContext(ctx, query, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []report.MonthCount
+	// Map of month numbers to month names
+	monthNames := map[int]string{
+		1:  "january",
+		2:  "february",
+		3:  "march",
+		4:  "april",
+		5:  "may",
+		6:  "june",
+		7:  "july",
+		8:  "august",
+		9:  "september",
+		10: "october",
+		11: "november",
+		12: "december",
+	}
+
+	for rows.Next() {
+		var monthNum int
+		var count int
+		if err := rows.Scan(&monthNum, &count); err != nil {
+			return nil, err
+		}
+
+		results = append(results, report.MonthCount{
+			Month: monthNames[monthNum],
+			Count: count,
+		})
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return results, nil
 }

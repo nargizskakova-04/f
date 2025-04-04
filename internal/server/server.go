@@ -95,7 +95,11 @@ func (app *App) setHandler() error {
 
 	// Add search repository and service
 	searchRepository := postgres.NewSearchRepository(dbConn)
-	searchService := serviceReport.NewSearchService(searchRepository, app.logger)
+	searchService := serviceReport.NewSearchService(
+		searchRepository,
+		orderRepository, // Pass the orderRepository
+		app.logger,
+	)
 
 	// Add report handler
 	v1.SetReportHandler(app.router, searchService, app.logger)
