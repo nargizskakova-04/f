@@ -79,7 +79,12 @@ func (app *App) setHandler() error {
 	}
 
 	orderRepository := postgres.NewOrderRepository(dbConn)
-	orderService := serviceOrder.NewOrderService(orderRepository, app.logger)
+	orderService := serviceOrder.NewOrderService(
+		orderRepository,
+		menuRepository,      // Required for ingredient checks
+		inventoryRepository, // Required for inventory updates
+		app.logger,
+	)
 
 	v1.SetOrderHandler(app.router, orderService, app.logger)
 	if err != nil {

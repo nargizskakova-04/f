@@ -17,7 +17,19 @@ type orderRepo interface {
 	DeleteOrder(ctx context.Context, id string) (string, error)
 }
 
-// type ServiceInterface interface {
-// 	CreateOrder(ctx context.Context, req orderdto.CreateOrderRequest) (string, error)
-// 	GetOrderByID(ctx context.Context, id string) (orderdto.GetOrderResponse, error)
-// }
+//	type ServiceInterface interface {
+//		CreateOrder(ctx context.Context, req orderdto.CreateOrderRequest) (string, error)
+//		GetOrderByID(ctx context.Context, id string) (orderdto.GetOrderResponse, error)
+//	}
+//
+// menuRepo defines methods for working with menu items and ingredients
+type menuRepo interface {
+	GetMenuItemIngredients(ctx context.Context, menuItemID string) ([]entity.MenuItemIngredient, error)
+}
+
+// inventoryRepo defines methods for working with inventory
+type inventoryRepo interface {
+	GetInventoryByID(ctx context.Context, id string) (entity.Inventory, error)
+	UpdateInventory(ctx context.Context, updates map[string]interface{}, id string) (string, error)
+	CreateInventoryTransaction(ctx context.Context, transaction entity.InventoryTransaction) error
+}

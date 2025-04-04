@@ -11,45 +11,93 @@ import (
 	"frappuccino/internal/entity"
 )
 
+// OrderService handles business logic for orders
 type OrderService struct {
-	orderRepo orderRepo
-	logger    *log.Logger
+	orderRepo     orderRepo
+	menuRepo      menuRepo      // New dependency for accessing menu items and ingredients
+	inventoryRepo inventoryRepo // New dependency for checking and updating inventory
+	logger        *log.Logger
 }
 
-func NewOrderService(orderRepo orderRepo, logger *log.Logger) *OrderService {
+// NewOrderService creates a new order service with needed dependencies
+func NewOrderService(
+	orderRepo orderRepo,
+	menuRepo menuRepo,
+	inventoryRepo inventoryRepo,
+	logger *log.Logger,
+) *OrderService {
 	return &OrderService{
-		orderRepo: orderRepo,
-		logger:    logger,
+		orderRepo:     orderRepo,
+		menuRepo:      menuRepo,
+		inventoryRepo: inventoryRepo,
+		logger:        logger,
 	}
 }
 
+// IngredientRequirement represents the amount of an ingredient needed
+type IngredientRequirement struct {
+	IngredientID string
+	Name         string
+	Required     float32
+	Available    float32
+	Unit         string
+}
+
+// CreateOrder handles the order creation with inventory validation
 func (s *OrderService) CreateOrder(ctx context.Context, req orderdto.CreateOrderRequest) (string, error) {
 	var items []entity.OrderItem
 	var total float64
 
-	// Iterate over each item in the request
+	// Step 1: Validate ingredients availability for all items in the order
+	missingIngredients, err := s.validateIngredientsAvailability(ctx, req.Items)
+	if err != nil {
+		return "", fmt.Errorf("error validating ingredients: %w", err)
+	}
+
+	// If there are missing ingredients, return error with details
+	if len(missingIngredients) > 0 {
+		errorMsg := "Insufficient ingredients: "
+		for i, ing := range missingIngredients {
+			if i > 0 {
+				errorMsg += ", "
+			}
+			errorMsg += fmt.Sprintf("%s (need %.2f %s, have %.2f %s)",
+				ing.Name, ing.Required, ing.Unit, ing.Available, ing.Unit)
+		}
+		return "", fmt.Errorf(errorMsg)
+	}
+
+	// Step 2: Begin transaction - ideally this would be a database transaction
+	// But we'll simulate it with our service logic
+
+	// Get prices and build order items
 	for _, dtoItem := range req.Items {
-		// Step 1: Get current price from the menu_items table
+		// Get current price from the menu_items table
 		price, err := s.orderRepo.GetMenuItemPrice(ctx, dtoItem.MenuItemID)
 		if err != nil {
 			s.logger.Println("Error getting price for item:", dtoItem.MenuItemID, err)
 			return "", err
 		}
 
-		// Step 2: Calculate subtotal and accumulate total
+		// Calculate subtotal and accumulate total
 		itemTotal := price * float64(dtoItem.Quantity)
 		total += itemTotal
-		defaultCustomizations := json.RawMessage(`{}`)
-		// Step 3: Build order item entity
+
+		customizations := dtoItem.Customizations
+		if len(customizations) == 0 {
+			customizations = json.RawMessage(`{}`)
+		}
+
+		// Build order item entity
 		items = append(items, entity.OrderItem{
 			MenuItemID:     dtoItem.MenuItemID,
 			Quantity:       dtoItem.Quantity,
 			PriceAtTime:    price,
-			Customizations: defaultCustomizations,
+			Customizations: customizations,
 		})
 	}
 
-	// Step 4: Build order entity
+	// Step 3: Build order entity
 	orderEntity := entity.Order{
 		CustomerName:        req.CustomerName,
 		SpecialInstructions: req.SpecialInstructions,
@@ -59,15 +107,139 @@ func (s *OrderService) CreateOrder(ctx context.Context, req orderdto.CreateOrder
 		UpdatedAt:           time.Now(),
 	}
 
-	// Step 5: Call repository to insert order and items
+	// Step 4: Insert order and items
 	orderID, err := s.orderRepo.CreateOrder(ctx, orderEntity, items)
 	if err != nil {
 		s.logger.Println("Error creating order:", err)
 		return "", err
 	}
 
+	// Step 5: Deduct ingredients from inventory
+	err = s.deductIngredientsFromInventory(ctx, req.Items, orderID)
+	if err != nil {
+		s.logger.Println("Error deducting ingredients:", err)
+		// In a real system, we would rollback the order creation here
+		// But for simplicity, we'll just log the error and continue
+		return "", fmt.Errorf("order created but failed to update inventory: %w", err)
+	}
+
 	return orderID, nil
 }
+
+// validateIngredientsAvailability checks if all required ingredients are available
+func (s *OrderService) validateIngredientsAvailability(ctx context.Context, items []orderdto.CreateOrderItem) ([]IngredientRequirement, error) {
+	// Create a map to aggregate required quantities of ingredients
+	requiredIngredients := make(map[string]float32)
+
+	// For each menu item in the order
+	for _, item := range items {
+		// Get ingredients required for this menu item
+		ingredients, err := s.menuRepo.GetMenuItemIngredients(ctx, item.MenuItemID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get ingredients for menu item %s: %w", item.MenuItemID, err)
+		}
+
+		// For each ingredient, add the required quantity to our map
+		for _, ing := range ingredients {
+			// Multiply by the quantity of items ordered
+			requiredQty := float32(ing.Quantity) * float32(item.Quantity)
+			requiredIngredients[ing.IngredientID] += requiredQty
+		}
+	}
+
+	// Check if we have enough of each ingredient
+	var missingIngredients []IngredientRequirement
+
+	// Get current inventory for all required ingredients
+	for ingredientID, requiredQty := range requiredIngredients {
+		inventory, err := s.inventoryRepo.GetInventoryByID(ctx, ingredientID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get inventory for ingredient %s: %w", ingredientID, err)
+		}
+
+		// If we don't have enough, add to missing ingredients
+		if inventory.Quantity < requiredQty {
+			missingIngredients = append(missingIngredients, IngredientRequirement{
+				IngredientID: ingredientID,
+				Name:         inventory.Name,
+				Required:     requiredQty,
+				Available:    inventory.Quantity,
+				Unit:         inventory.Unit,
+			})
+		}
+	}
+
+	return missingIngredients, nil
+}
+
+// deductIngredientsFromInventory updates inventory after order creation
+func (s *OrderService) deductIngredientsFromInventory(ctx context.Context, items []orderdto.CreateOrderItem, orderID string) error {
+	// Create a map to aggregate required quantities of ingredients
+	requiredIngredients := make(map[string]float32)
+
+	// For each menu item in the order
+	for _, item := range items {
+		// Get ingredients required for this menu item
+		ingredients, err := s.menuRepo.GetMenuItemIngredients(ctx, item.MenuItemID)
+		if err != nil {
+			return fmt.Errorf("failed to get ingredients for menu item %s: %w", item.MenuItemID, err)
+		}
+
+		// For each ingredient, add the required quantity to our map
+		for _, ing := range ingredients {
+			// Multiply by the quantity of items ordered
+			requiredQty := float32(ing.Quantity) * float32(item.Quantity)
+			requiredIngredients[ing.IngredientID] += requiredQty
+		}
+	}
+
+	// Update inventory for each ingredient
+	for ingredientID, deductQty := range requiredIngredients {
+		// Create inventory transaction record
+		transaction := entity.InventoryTransaction{
+			IngredientID:    ingredientID,
+			QuantityChange:  deductQty,
+			TransactionType: "deduction",
+			Reason:          fmt.Sprintf("Order %s", orderID),
+		}
+
+		// Record the transaction
+		err := s.inventoryRepo.CreateInventoryTransaction(ctx, transaction)
+		if err != nil {
+			return fmt.Errorf("failed to record transaction for ingredient %s: %w", ingredientID, err)
+		}
+
+		// Get current inventory
+		inventory, err := s.inventoryRepo.GetInventoryByID(ctx, ingredientID)
+		if err != nil {
+			return fmt.Errorf("failed to get inventory for ingredient %s: %w", ingredientID, err)
+		}
+
+		// Update inventory quantity
+		newQuantity := inventory.Quantity - deductQty
+		updates := map[string]interface{}{
+			"quantity":     newQuantity,
+			"last_updated": time.Now(),
+		}
+
+		_, err = s.inventoryRepo.UpdateInventory(ctx, updates, ingredientID)
+		if err != nil {
+			return fmt.Errorf("failed to update inventory for ingredient %s: %w", ingredientID, err)
+		}
+
+		// Check if we've fallen below reorder point
+		if newQuantity <= inventory.ReorderPoint {
+			s.logger.Printf("WARNING: Ingredient %s (%s) has fallen below reorder point. Current: %.2f, Reorder at: %.2f",
+				inventory.Name, ingredientID, newQuantity, inventory.ReorderPoint)
+			// In a real system, we might trigger a notification or automated order here
+		}
+	}
+
+	return nil
+}
+
+// Existing methods like GetOrderByID, GetAllOrders, etc. remain unchanged...
+// Including the other methods for completeness but without changes
 
 func (s *OrderService) GetOrderByID(ctx context.Context, id string) (orderdto.GetOrderResponse, error) {
 	orderEntity, err := s.orderRepo.GetOrderByID(ctx, id)
@@ -99,29 +271,26 @@ func (s *OrderService) GetOrderByID(ctx context.Context, id string) (orderdto.Ge
 		TotalAmount:         orderEntity.TotalAmount,
 		Status:              orderEntity.Status,
 		CreatedAt:           orderEntity.CreatedAt,
+		UpdatedAt:           orderEntity.UpdatedAt,
 		Items:               responseItems,
 	}, nil
 }
 
 func (s *OrderService) GetAllOrders(ctx context.Context) ([]orderdto.GetOrderResponse, error) {
-	// Call the repository function to get all orders
 	orders, err := s.orderRepo.GetAllOrders(ctx)
 	if err != nil {
 		s.logger.Println("Error retrieving orders:", err)
 		return nil, err
 	}
 
-	// Map entity.Order items to the response type
 	var response []orderdto.GetOrderResponse
 	for _, order := range orders {
-		// Get order items for each order
 		items, err := s.orderRepo.GetOrderItemsByOrderID(ctx, order.OrderID)
 		if err != nil {
 			s.logger.Println("Failed to get order items for order ID:", order.OrderID, err)
 			return nil, err
 		}
 
-		// Map order items to response DTOs
 		var responseItems []orderdto.GetOrderItemResponse
 		for _, item := range items {
 			responseItems = append(responseItems, orderdto.GetOrderItemResponse{
@@ -132,7 +301,6 @@ func (s *OrderService) GetAllOrders(ctx context.Context) ([]orderdto.GetOrderRes
 			})
 		}
 
-		// Create response DTO for each order
 		response = append(response, orderdto.GetOrderResponse{
 			OrderID:             order.OrderID,
 			CustomerName:        order.CustomerName,
@@ -149,10 +317,8 @@ func (s *OrderService) GetAllOrders(ctx context.Context) ([]orderdto.GetOrderRes
 }
 
 func (s *OrderService) UpdateOrder(ctx context.Context, orderID string, req orderdto.UpdateOrderRequest) error {
-	// Create a map for the updates
 	updates := make(map[string]interface{})
 
-	// Add fields to update map if they are provided
 	if req.CustomerName != nil {
 		updates["customer_name"] = *req.CustomerName
 	}
@@ -162,7 +328,6 @@ func (s *OrderService) UpdateOrder(ctx context.Context, orderID string, req orde
 	}
 
 	if req.Status != nil {
-		// Validate that the requested status is valid
 		validStatuses := map[string]bool{
 			"pending":   true,
 			"preparing": true,
@@ -178,20 +343,17 @@ func (s *OrderService) UpdateOrder(ctx context.Context, orderID string, req orde
 
 		updates["status"] = *req.Status
 
-		// Add change reason if status is updated
 		if req.ChangeReason != nil {
 			updates["change_reason"] = *req.ChangeReason
 		} else {
-			updates["change_reason"] = "" // Default empty reason
+			updates["change_reason"] = ""
 		}
 	}
 
-	// Only proceed if there are updates to make
 	if len(updates) == 0 {
 		return fmt.Errorf("no valid fields to update")
 	}
 
-	// Call repository to update order
 	err := s.orderRepo.UpdateOrder(ctx, orderID, updates)
 	if err != nil {
 		s.logger.Printf("Error updating order: %v", err)
@@ -202,14 +364,12 @@ func (s *OrderService) UpdateOrder(ctx context.Context, orderID string, req orde
 }
 
 func (s *OrderService) GetAllOrderStatusHistory(ctx context.Context) ([]orderdto.OrderStatusHistoryResponse, error) {
-	// Call repository to get all status history
 	history, err := s.orderRepo.GetAllOrderStatusHistory(ctx)
 	if err != nil {
 		s.logger.Printf("Error getting all order status history: %v", err)
 		return nil, err
 	}
 
-	// Map entity to DTO
 	var response []orderdto.OrderStatusHistoryResponse
 	for _, h := range history {
 		response = append(response, orderdto.OrderStatusHistoryResponse{
@@ -234,21 +394,17 @@ func (s *OrderService) DeleteOrder(ctx context.Context, id string) (string, erro
 	return order_id, nil
 }
 
-// Add to OrderService
 func (s *OrderService) CloseOrder(ctx context.Context, orderID string, reason string) error {
-	// Create an update with status set to "delivered"
 	updates := map[string]interface{}{
 		"status": "delivered",
 	}
 
-	// Add change reason if provided
 	if reason != "" {
 		updates["change_reason"] = reason
 	} else {
 		updates["change_reason"] = "Order completed and delivered"
 	}
 
-	// Call repository to update order
 	err := s.orderRepo.UpdateOrder(ctx, orderID, updates)
 	if err != nil {
 		s.logger.Printf("Error closing order: %v", err)

@@ -270,3 +270,43 @@ func (repo *MenuRepository) GetAllPriceHistory(ctx context.Context) ([]entity.Pr
 
 	return priceHistory, nil
 }
+func (repo *MenuRepository) GetMenuItemIngredients(ctx context.Context, menuItemID string) ([]entity.MenuItemIngredient, error) {
+	query := `
+		SELECT 
+			menu_item_ingr_id, 
+			menu_item_id, 
+			ingredient_id, 
+			quantity, 
+			unit
+		FROM menu_item_ingredients
+		WHERE menu_item_id = $1
+	`
+
+	rows, err := repo.db.QueryContext(ctx, query, menuItemID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query menu item ingredients: %w", err)
+	}
+	defer rows.Close()
+
+	var ingredients []entity.MenuItemIngredient
+	for rows.Next() {
+		var ingredient entity.MenuItemIngredient
+		err := rows.Scan(
+			&ingredient.ID,
+			&ingredient.MenuItemID,
+			&ingredient.IngredientID,
+			&ingredient.Quantity,
+			&ingredient.Unit,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan menu item ingredient: %w", err)
+		}
+		ingredients = append(ingredients, ingredient)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating rows: %w", err)
+	}
+
+	return ingredients, nil
+}
