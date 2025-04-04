@@ -41,6 +41,8 @@ func setOrderRoutes(handler *OrderHandler, router *http.ServeMux) {
 func setReportRoutes(handler *ReportHandler, router *http.ServeMux) {
 	router.HandleFunc("GET /reports/search", handler.SearchReport)
 	router.HandleFunc("GET /reports/orderedItemsByPeriod", handler.GetOrderedItemsByPeriod)
+	router.HandleFunc("GET /reports/total-sales", handler.GetTotalSales)
+	router.HandleFunc("GET /reports/popular-items", handler.GetPopularItems)
 }
 
 // func SetOrderHandler(router *http.ServeMux, orderService order.ServiceInterface, logger *log.Logger) {

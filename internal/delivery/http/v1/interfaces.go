@@ -46,4 +46,6 @@ type orderInterface interface {
 type reportInterface interface {
 	Search(ctx context.Context, req report.SearchRequest) (report.SearchResponse, error)
 	GetOrderedItemsByPeriod(ctx context.Context, req report.OrderedItemsByPeriodRequest) (report.OrderedItemsByPeriodResponse, error)
+	GetTotalSales(ctx context.Context, req report.TotalSalesRequest) (report.TotalSalesResponse, error)
+	GetPopularItems(ctx context.Context, req report.PopularItemsRequest) (report.PopularItemsResponse, error)
 }

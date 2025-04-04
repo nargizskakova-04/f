@@ -17,4 +17,8 @@ type searchRepo interface {
 type orderRepo interface {
 	GetOrderedItemsByDay(ctx context.Context, month time.Month, year int) ([]report.DayCount, error)
 	GetOrderedItemsByMonth(ctx context.Context, year int) ([]report.MonthCount, error)
+
+	// New methods for aggregation reports
+	GetTotalSales(ctx context.Context, startDate, endDate *time.Time, status string) (float64, int, error)
+	GetPopularItems(ctx context.Context, startDate, endDate *time.Time, limit int) ([]report.PopularItem, int, float64, error)
 }
