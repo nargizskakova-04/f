@@ -1,0 +1,17 @@
+{
+  "app": {
+    "port": 8080,
+    "rto": 30000000000,
+    "wto": 30000000000
+  },
+  "repository": {
+    "db_host": "db",
+    "db_port": 5432,
+    "db_name": "frappuccino",
+    "db_username": "latte",
+    "db_password": "latte",
+    "db_ssl_mode": "disable",
+    "max_conn": 10,
+    "max_idle_conn": 10
+  }
+}
