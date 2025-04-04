@@ -189,3 +189,65 @@ func (repo *InventoryRepository) GetInventoryTransactions(ctx context.Context, i
 
 	return transactions, nil
 }
+
+func (repo *InventoryRepository) GetLeftOvers(ctx context.Context, sortBy string, page, pageSize int) ([]entity.Inventory, int, error) {
+	// Build the query with sorting and pagination
+	queryBuilder := strings.Builder{}
+	queryBuilder.WriteString(`
+		SELECT ingredient_id, name, quantity, unit, unit_price, reorder_point, last_updated
+		FROM inventory
+	`)
+
+	// Add sorting
+	switch sortBy {
+	case "price":
+		queryBuilder.WriteString(" ORDER BY unit_price DESC")
+	case "quantity":
+		queryBuilder.WriteString(" ORDER BY quantity DESC")
+	default:
+		queryBuilder.WriteString(" ORDER BY name")
+	}
+
+	// Add pagination
+	offset := (page - 1) * pageSize
+	queryBuilder.WriteString(" LIMIT $1 OFFSET $2")
+
+	// Execute the query to get items
+	rows, err := repo.db.QueryContext(ctx, queryBuilder.String(), pageSize, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	// Parse the inventory items
+	var inventories []entity.Inventory
+	for rows.Next() {
+		var inv entity.Inventory
+		if err := rows.Scan(
+			&inv.IngredientID,
+			&inv.Name,
+			&inv.Quantity,
+			&inv.Unit,
+			&inv.UnitPrice,
+			&inv.ReorderPoint,
+			&inv.LastUpdated,
+		); err != nil {
+			return nil, 0, err
+		}
+		inventories = append(inventories, inv)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+
+	// Get total count for pagination info
+	var totalCount int
+	countQuery := "SELECT COUNT(*) FROM inventory"
+	err = repo.db.QueryRowContext(ctx, countQuery).Scan(&totalCount)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return inventories, totalCount, nil
+}

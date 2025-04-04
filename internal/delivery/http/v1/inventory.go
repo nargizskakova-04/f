@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"frappuccino/internal/dto/inventory"
 )
@@ -227,6 +229,70 @@ func (h *InventoryHandler) GetInventoryTransactionsResponse(w http.ResponseWrite
 
 	if err := json.NewEncoder(w).Encode(transactions); err != nil {
 		h.logger.Println("method:GetInventoryTransactionsResponse, function:json encode", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+}
+
+func (h *InventoryHandler) GetLeftOversResponse(w http.ResponseWriter, r *http.Request) {
+	// Parse query parameters
+	query := r.URL.Query()
+	sortBy := query.Get("sortBy")
+	pageStr := query.Get("page")
+	pageSizeStr := query.Get("pageSize")
+
+	// Set defaults and parse page parameters
+	page := 1
+	pageSize := 10
+
+	if pageStr != "" {
+		parsedPage, err := strconv.Atoi(pageStr)
+		if err != nil || parsedPage < 1 {
+			h.logger.Println("method:GetLeftOversResponse, invalid page parameter:", pageStr)
+			http.Error(w, "Invalid page parameter, must be a positive integer", http.StatusBadRequest)
+			return
+		}
+		page = parsedPage
+	}
+
+	if pageSizeStr != "" {
+		parsedPageSize, err := strconv.Atoi(pageSizeStr)
+		if err != nil || parsedPageSize < 1 {
+			h.logger.Println("method:GetLeftOversResponse, invalid pageSize parameter:", pageSizeStr)
+			http.Error(w, "Invalid pageSize parameter, must be a positive integer", http.StatusBadRequest)
+			return
+		}
+		pageSize = parsedPageSize
+	}
+
+	// Clean and validate sortBy parameter
+	// The issue here is that the URL might have a format like "sortBy=quantity?page=1"
+	// where the query string contains another '?' instead of '&'
+	if strings.Contains(sortBy, "?") {
+		// Extract the actual sortBy value before any additional '?'
+		sortBy = strings.Split(sortBy, "?")[0]
+	}
+
+	// Now validate the clean sortBy parameter
+	if sortBy != "" && sortBy != "price" && sortBy != "quantity" {
+		h.logger.Println("method:GetLeftOversResponse, invalid sortBy parameter:", sortBy)
+		http.Error(w, "Invalid sortBy parameter. Must be 'price' or 'quantity'", http.StatusBadRequest)
+		return
+	}
+
+	// Call service to get leftovers
+	response, err := h.inventoryService.GetLeftOvers(r.Context(), sortBy, page, pageSize)
+	if err != nil {
+		h.logger.Println("method:GetLeftOversResponse, function:GetLeftOvers", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		h.logger.Println("method:GetLeftOversResponse, function:json encode", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

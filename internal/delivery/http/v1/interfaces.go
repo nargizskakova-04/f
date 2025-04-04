@@ -19,6 +19,7 @@ type inventoryInterface interface {
 	UpdateInventory(ctx context.Context, request inventory.UpdateInventoryRequest, id string) (string, error)
 	RecordInventoryTransaction(ctx context.Context, request inventory.CreateTransactionRequest) error
 	GetInventoryTransactions(ctx context.Context, ingredientID string) ([]inventory.TransactionResponse, error)
+	GetLeftOvers(ctx context.Context, sortBy string, page, pageSize int) (inventory.GetLeftOversResponse, error)
 }
 
 type menuInterface interface {

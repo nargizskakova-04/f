@@ -298,3 +298,34 @@ func (s *InventoryService) GetInventoryTransactions(ctx context.Context, ingredi
 
 	return response, nil
 }
+func (s *InventoryService) GetLeftOvers(ctx context.Context, sortBy string, page, pageSize int) (inventory.GetLeftOversResponse, error) {
+	// Call repository to get paginated and sorted inventory items
+	items, totalCount, err := s.inventoryRepo.GetLeftOvers(ctx, sortBy, page, pageSize)
+	if err != nil {
+		s.logger.Println("Error retrieving inventory leftovers:", err)
+		return inventory.GetLeftOversResponse{}, err
+	}
+
+	// Calculate pagination details
+	totalPages := (totalCount + pageSize - 1) / pageSize // Ceiling division
+	hasNextPage := page < totalPages
+
+	// Map entity.Inventory items to LeftOverItem DTOs
+	var leftoverItems []inventory.LeftOverItem
+	for _, item := range items {
+		leftoverItems = append(leftoverItems, inventory.LeftOverItem{
+			Name:     item.Name,
+			Quantity: item.Quantity,
+			Price:    item.UnitPrice * 100, // Convert to cents as in the example
+		})
+	}
+
+	// Build and return the response
+	return inventory.GetLeftOversResponse{
+		CurrentPage: page,
+		HasNextPage: hasNextPage,
+		PageSize:    pageSize,
+		TotalPages:  totalPages,
+		Data:        leftoverItems,
+	}, nil
+}

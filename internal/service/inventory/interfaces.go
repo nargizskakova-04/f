@@ -14,4 +14,5 @@ type inventoryRepo interface {
 	UpdateInventory(ctx context.Context, updates map[string]interface{}, id string) (string, error)
 	CreateInventoryTransaction(ctx context.Context, transaction entity.InventoryTransaction) error
 	GetInventoryTransactions(ctx context.Context, ingredientID string) ([]entity.InventoryTransaction, error)
+	GetLeftOvers(ctx context.Context, sortBy string, page, pageSize int) ([]entity.Inventory, int, error)
 }

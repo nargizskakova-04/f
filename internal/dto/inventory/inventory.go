@@ -45,6 +45,19 @@ type TransactionResponse struct {
 	Reason          string    `json:"reason"`
 	CreatedAt       time.Time `json:"created_at"`
 }
+type LeftOverItem struct {
+	Name     string  `json:"name"`
+	Quantity float32 `json:"quantity"`
+	Price    float32 `json:"price"`
+}
+
+type GetLeftOversResponse struct {
+	CurrentPage int            `json:"currentPage"`
+	HasNextPage bool           `json:"hasNextPage"`
+	PageSize    int            `json:"pageSize"`
+	TotalPages  int            `json:"totalPages"`
+	Data        []LeftOverItem `json:"data"`
+}
 
 // type UpdateInventoryRequest struct {
 // 	Name         string `json:"name"`

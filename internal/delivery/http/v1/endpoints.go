@@ -12,6 +12,7 @@ func setInventoryRoutes(handler *InventoryHandler, router *http.ServeMux) {
 	router.HandleFunc("PUT /inventory/{id}", handler.UpdateInventoryRequest)
 	router.HandleFunc("POST /inventory/transactions", handler.CreateInventoryTransactionRequest)
 	router.HandleFunc("GET /inventory/{id}/transactions", handler.GetInventoryTransactionsResponse)
+	router.HandleFunc("GET /inventory/getLeftOvers", handler.GetLeftOversResponse)
 }
 
 func setMenuRoutes(handler *MenuHandler, router *http.ServeMux) {
