@@ -40,6 +40,7 @@ type orderInterface interface {
 	DeleteOrder(ctx context.Context, id string) (string, error)
 	CloseOrder(ctx context.Context, orderID string, reason string) error
 	GetNumberOfOrderedItems(ctx context.Context, startDate, endDate *time.Time) (map[string]int, error)
+	BatchProcessOrders(ctx context.Context, req orderdto.BatchOrderRequest) (orderdto.BatchOrderResponse, error)
 }
 
 type reportInterface interface {

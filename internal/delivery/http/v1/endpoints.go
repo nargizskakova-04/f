@@ -35,6 +35,7 @@ func setOrderRoutes(handler *OrderHandler, router *http.ServeMux) {
 	router.HandleFunc("DELETE /orders/{id}", handler.DeleteOrderRequest)
 	router.HandleFunc("POST /orders/{id}/close", handler.CloseOrder)
 	router.HandleFunc("GET /orders/numberOfOrderedItems", handler.GetNumberOfOrderedItems)
+	router.HandleFunc("POST /orders/batch-process", handler.BatchProcessOrdersRequest)
 }
 
 func setReportRoutes(handler *ReportHandler, router *http.ServeMux) {
