@@ -13,6 +13,7 @@ import (
 	serviceInv "frappuccino/internal/service/inventory"
 	serviceMenu "frappuccino/internal/service/menu"
 	serviceOrder "frappuccino/internal/service/order"
+	serviceReport "frappuccino/internal/service/report"
 
 	"frappuccino/internal/config"
 	"frappuccino/internal/repository/postgres"
@@ -91,6 +92,13 @@ func (app *App) setHandler() error {
 		app.logger.Println("Connection to db failed")
 		return err
 	}
+
+	// Add search repository and service
+	searchRepository := postgres.NewSearchRepository(dbConn)
+	searchService := serviceReport.NewSearchService(searchRepository, app.logger)
+
+	// Add report handler
+	v1.SetReportHandler(app.router, searchService, app.logger)
 
 	return nil
 }

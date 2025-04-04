@@ -6,6 +6,7 @@ import (
 
 	"frappuccino/internal/dto/inventory"
 	"frappuccino/internal/dto/menu"
+	"frappuccino/internal/dto/report"
 
 	orderdto "frappuccino/internal/dto/order"
 )
@@ -38,4 +39,8 @@ type orderInterface interface {
 	DeleteOrder(ctx context.Context, id string) (string, error)
 	CloseOrder(ctx context.Context, orderID string, reason string) error
 	GetNumberOfOrderedItems(ctx context.Context, startDate, endDate *time.Time) (map[string]int, error)
+}
+
+type reportInterface interface {
+	Search(ctx context.Context, req report.SearchRequest) (report.SearchResponse, error)
 }

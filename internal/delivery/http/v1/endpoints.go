@@ -36,6 +36,10 @@ func setOrderRoutes(handler *OrderHandler, router *http.ServeMux) {
 	router.HandleFunc("GET /orders/numberOfOrderedItems", handler.GetNumberOfOrderedItems)
 }
 
+func setReportRoutes(handler *ReportHandler, router *http.ServeMux) {
+	router.HandleFunc("GET /reports/search", handler.SearchReport)
+}
+
 // func SetOrderHandler(router *http.ServeMux, orderService order.ServiceInterface, logger *log.Logger) {
 // 	handler := NewOrderHandler(orderService)
 // 	setOrderRoutes(handler, router)
