@@ -21,7 +21,6 @@ func NewMenuRepository(db *sql.DB) *MenuRepository {
 	}
 }
 
-// TO-DO: для чего нужен контекст, почему тут int64
 func (repo *MenuRepository) CreateMenuItem(ctx context.Context, menuItem entity.MenuItem) (string, error) {
 	var ID string
 	query := `
@@ -37,13 +36,12 @@ func (repo *MenuRepository) CreateMenuItem(ctx context.Context, menuItem entity.
 	RETURNING menu_item_id;
 	`
 
-	// Convert Go slices to PostgreSQL arrays using pq.Array
 	err := repo.db.QueryRowContext(ctx, query,
 		menuItem.Name,
 		menuItem.Description,
 		menuItem.Price,
-		pq.Array(menuItem.Categories), // Use pq.Array for []string
-		pq.Array(menuItem.Allergens),  // Use pq.Array for []string
+		pq.Array(menuItem.Categories),
+		pq.Array(menuItem.Allergens),
 		menuItem.Size,
 		menuItem.CustomizationOptions).Scan(&ID)
 
@@ -76,7 +74,6 @@ func (repo *MenuRepository) GetMenuItem(ctx context.Context) ([]entity.MenuItem,
 	for rows.Next() {
 		var menu entity.MenuItem
 
-		// Use temporary variables for categories and allergens
 		var categories, allergens []string
 
 		if err := rows.Scan(
@@ -84,8 +81,8 @@ func (repo *MenuRepository) GetMenuItem(ctx context.Context) ([]entity.MenuItem,
 			&menu.Name,
 			&menu.Description,
 			&menu.Price,
-			pq.Array(&categories), // Use pq.Array for scanning array types
-			pq.Array(&allergens),  // Use pq.Array for scanning array types
+			pq.Array(&categories),
+			pq.Array(&allergens),
 			&menu.Size,
 			&menu.CustomizationOptions,
 			&menu.UpdatedAt,
@@ -93,7 +90,6 @@ func (repo *MenuRepository) GetMenuItem(ctx context.Context) ([]entity.MenuItem,
 			return nil, err
 		}
 
-		// Assign the scanned arrays to the menu struct
 		menu.Categories = categories
 		menu.Allergens = allergens
 
@@ -130,8 +126,8 @@ func (repo *MenuRepository) GetMenuByID(ctx context.Context, id string) (entity.
 		&menu.Name,
 		&menu.Description,
 		&menu.Price,
-		pq.Array(&categories), // Use pq.Array for scanning array types
-		pq.Array(&allergens),  // Use pq.Array for scanning array types
+		pq.Array(&categories),
+		pq.Array(&allergens),
 		&menu.Size,
 		&menu.CustomizationOptions,
 		&menu.UpdatedAt,
@@ -227,6 +223,7 @@ func (r *MenuRepository) CreateMenuItemIngredients(ctx context.Context, menuItem
 	}
 	return nil
 }
+
 func (repo *MenuRepository) GetAllPriceHistory(ctx context.Context) ([]entity.PriceHistory, error) {
 	var priceHistory []entity.PriceHistory
 	query := `
@@ -270,6 +267,7 @@ func (repo *MenuRepository) GetAllPriceHistory(ctx context.Context) ([]entity.Pr
 
 	return priceHistory, nil
 }
+
 func (repo *MenuRepository) GetMenuItemIngredients(ctx context.Context, menuItemID string) ([]entity.MenuItemIngredient, error) {
 	query := `
 		SELECT 

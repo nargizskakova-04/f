@@ -1,6 +1,5 @@
 package report
 
-// SearchRequest represents the parameters for a search operation
 type SearchRequest struct {
 	Query    string  `json:"q"`
 	Filter   string  `json:"filter,omitempty"`
@@ -8,7 +7,6 @@ type SearchRequest struct {
 	MaxPrice float64 `json:"max_price,omitempty"`
 }
 
-// SearchResultItem represents a menu item in search results
 type SearchResultMenuItem struct {
 	ID          string  `json:"id"`
 	Name        string  `json:"name"`
@@ -17,7 +15,6 @@ type SearchResultMenuItem struct {
 	Relevance   float64 `json:"relevance"`
 }
 
-// SearchResultOrder represents an order in search results
 type SearchResultOrder struct {
 	ID           string   `json:"id"`
 	CustomerName string   `json:"customer_name"`
@@ -26,7 +23,6 @@ type SearchResultOrder struct {
 	Relevance    float64  `json:"relevance"`
 }
 
-// SearchResponse represents the combined search results
 type SearchResponse struct {
 	MenuItems    []SearchResultMenuItem `json:"menu_items,omitempty"`
 	Orders       []SearchResultOrder    `json:"orders,omitempty"`

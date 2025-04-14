@@ -58,7 +58,6 @@ func (app *App) Run() {
 func (app *App) setHandler() error {
 	var err error
 
-	/*dbConn*/
 	dbConn, err := postgres.NewDbConnInstance(&app.cfg.Repository)
 
 	inventoryRepository := postgres.NewInventoryRepository(dbConn)
@@ -82,8 +81,8 @@ func (app *App) setHandler() error {
 	orderRepository := postgres.NewOrderRepository(dbConn)
 	orderService := serviceOrder.NewOrderService(
 		orderRepository,
-		menuRepository,      // Required for ingredient checks
-		inventoryRepository, // Required for inventory updates
+		menuRepository,
+		inventoryRepository,
 		app.logger,
 	)
 
@@ -93,15 +92,13 @@ func (app *App) setHandler() error {
 		return err
 	}
 
-	// Add search repository and service
 	searchRepository := postgres.NewSearchRepository(dbConn)
 	searchService := serviceReport.NewSearchService(
 		searchRepository,
-		orderRepository, // Pass the orderRepository
+		orderRepository,
 		app.logger,
 	)
 
-	// Add report handler
 	v1.SetReportHandler(app.router, searchService, app.logger)
 
 	return nil

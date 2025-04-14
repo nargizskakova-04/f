@@ -19,7 +19,6 @@ func NewInventoryRepository(db *sql.DB) *InventoryRepository {
 	}
 }
 
-// TO-DO: для чего нужен контекст, почему тут int64
 func (repo *InventoryRepository) CreateInventory(ctx context.Context, inventory entity.Inventory) (string, error) {
 	var ID string
 	query := `
@@ -103,20 +102,15 @@ func (repo *InventoryRepository) DeleteInventory(ctx context.Context, id string)
 }
 
 func (repo *InventoryRepository) UpdateInventory(ctx context.Context, updates map[string]interface{}, id string) (string, error) {
-	// Start building the query
 	queryBuilder := strings.Builder{}
 	queryBuilder.WriteString("UPDATE inventory SET ")
 
-	// Values to be passed to the query
 	values := []interface{}{}
 
-	// Keep track of the parameter index
 	paramIndex := 1
 
-	// Track if it's the first field (for comma placement)
 	isFirst := true
 
-	// Add fields that need to be updated
 	for field, value := range updates {
 		if !isFirst {
 			queryBuilder.WriteString(", ")
@@ -128,11 +122,9 @@ func (repo *InventoryRepository) UpdateInventory(ctx context.Context, updates ma
 		isFirst = false
 	}
 
-	// Add the WHERE clause and the id parameter
 	queryBuilder.WriteString(" WHERE ingredient_id = $" + strconv.Itoa(paramIndex))
 	values = append(values, id)
 
-	// Execute the query
 	_, err := repo.db.ExecContext(ctx, queryBuilder.String(), values...)
 	return id, err
 }
@@ -191,14 +183,12 @@ func (repo *InventoryRepository) GetInventoryTransactions(ctx context.Context, i
 }
 
 func (repo *InventoryRepository) GetLeftOvers(ctx context.Context, sortBy string, page, pageSize int) ([]entity.Inventory, int, error) {
-	// Build the query with sorting and pagination
 	queryBuilder := strings.Builder{}
 	queryBuilder.WriteString(`
 		SELECT ingredient_id, name, quantity, unit, unit_price, reorder_point, last_updated
 		FROM inventory
 	`)
 
-	// Add sorting
 	switch sortBy {
 	case "price":
 		queryBuilder.WriteString(" ORDER BY unit_price DESC")
@@ -208,18 +198,15 @@ func (repo *InventoryRepository) GetLeftOvers(ctx context.Context, sortBy string
 		queryBuilder.WriteString(" ORDER BY name")
 	}
 
-	// Add pagination
 	offset := (page - 1) * pageSize
 	queryBuilder.WriteString(" LIMIT $1 OFFSET $2")
 
-	// Execute the query to get items
 	rows, err := repo.db.QueryContext(ctx, queryBuilder.String(), pageSize, offset)
 	if err != nil {
 		return nil, 0, err
 	}
 	defer rows.Close()
 
-	// Parse the inventory items
 	var inventories []entity.Inventory
 	for rows.Next() {
 		var inv entity.Inventory
@@ -241,7 +228,6 @@ func (repo *InventoryRepository) GetLeftOvers(ctx context.Context, sortBy string
 		return nil, 0, err
 	}
 
-	// Get total count for pagination info
 	var totalCount int
 	countQuery := "SELECT COUNT(*) FROM inventory"
 	err = repo.db.QueryRowContext(ctx, countQuery).Scan(&totalCount)

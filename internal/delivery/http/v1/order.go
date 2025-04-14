@@ -35,7 +35,6 @@ func (h *OrderHandler) CreateOrderRequest(w http.ResponseWriter, r *http.Request
 }
 
 func (h *OrderHandler) GetOrderByIDResponse(w http.ResponseWriter, r *http.Request) {
-	// Extract ID from URL path (Go 1.22+ pattern matching)
 	id := r.PathValue("id")
 	if id == "" {
 		h.logger.Println("method:GetOrderByIDRequest, function: missing id parameter")
@@ -43,12 +42,10 @@ func (h *OrderHandler) GetOrderByIDResponse(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Call service to get the order item
 	orderItem, err := h.orderService.GetOrderByID(r.Context(), id)
 	if err != nil {
 		h.logger.Println("method:GetOrderByIDRequest, function:GetOrderByID", err.Error())
 
-		// Check if it's a "not found" error
 		if err == sql.ErrNoRows {
 			w.WriteHeader(http.StatusNotFound)
 		} else {
@@ -68,9 +65,6 @@ func (h *OrderHandler) GetOrderByIDResponse(w http.ResponseWriter, r *http.Reque
 }
 
 func (h *OrderHandler) GetOrderResponse(w http.ResponseWriter, r *http.Request) {
-	// For GET requests, we typically don't need to decode the request body
-	// Instead, we directly call the service
-
 	orderItems, err := h.orderService.GetAllOrders(r.Context())
 	if err != nil {
 		h.logger.Println("method:GetOrderItemRequest, function:GetOrderItem", err.Error())
@@ -109,7 +103,6 @@ func (h *OrderHandler) UpdateOrderRequest(w http.ResponseWriter, r *http.Request
 		statusCode := http.StatusInternalServerError
 		errorMessage := "Internal server error"
 
-		// Check for specific errors to provide better responses
 		if err.Error() == "no fields to update" {
 			statusCode = http.StatusBadRequest
 			errorMessage = "No fields to update"
@@ -127,7 +120,6 @@ func (h *OrderHandler) UpdateOrderRequest(w http.ResponseWriter, r *http.Request
 	}
 }
 
-// Add to your HTTP handlers
 func (h *OrderHandler) GetAllOrderStatusHistory(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -138,7 +130,6 @@ func (h *OrderHandler) GetAllOrderStatusHistory(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	// Respond with JSON
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(history); err != nil {
 		h.logger.Println("Error encoding response:", err)
@@ -171,7 +162,6 @@ func (h *OrderHandler) DeleteOrderRequest(w http.ResponseWriter, r *http.Request
 }
 
 func (h *OrderHandler) CloseOrder(w http.ResponseWriter, r *http.Request) {
-	// Extract order ID from URL path
 	id := r.PathValue("id")
 	if id == "" {
 		h.logger.Println("method:CloseOrder, function: missing id parameter")
@@ -179,10 +169,8 @@ func (h *OrderHandler) CloseOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Decode request body
 	var req order.CloseOrderRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		// If body is empty, continue with empty reason
 		if err != io.EOF {
 			h.logger.Println("method:CloseOrder, function:json decode", err.Error())
 			http.Error(w, "Invalid request format", http.StatusBadRequest)
@@ -190,7 +178,6 @@ func (h *OrderHandler) CloseOrder(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Call service to close the order
 	err := h.orderService.CloseOrder(r.Context(), id, req.Reason)
 	if err != nil {
 		h.logger.Println("method:CloseOrder, function:CloseOrder", err.Error())
@@ -198,7 +185,6 @@ func (h *OrderHandler) CloseOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Success response
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	response := map[string]string{
@@ -213,14 +199,11 @@ func (h *OrderHandler) CloseOrder(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *OrderHandler) GetNumberOfOrderedItems(w http.ResponseWriter, r *http.Request) {
-	// Parse query parameters
 	startDateStr := r.URL.Query().Get("startDate")
 	endDateStr := r.URL.Query().Get("endDate")
 
-	// Initialize date variables
 	var startDate, endDate *time.Time
 
-	// Parse start date if provided
 	if startDateStr != "" {
 		parsedStartDate, err := parseDate(startDateStr)
 		if err != nil {
@@ -231,7 +214,6 @@ func (h *OrderHandler) GetNumberOfOrderedItems(w http.ResponseWriter, r *http.Re
 		startDate = &parsedStartDate
 	}
 
-	// Parse end date if provided
 	if endDateStr != "" {
 		parsedEndDate, err := parseDate(endDateStr)
 		if err != nil {
@@ -242,7 +224,6 @@ func (h *OrderHandler) GetNumberOfOrderedItems(w http.ResponseWriter, r *http.Re
 		endDate = &parsedEndDate
 	}
 
-	// Call service method to get the data
 	itemCounts, err := h.orderService.GetNumberOfOrderedItems(r.Context(), startDate, endDate)
 	if err != nil {
 		h.logger.Printf("Error getting number of ordered items: %v", err)
@@ -250,7 +231,6 @@ func (h *OrderHandler) GetNumberOfOrderedItems(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// Return the response
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(itemCounts); err != nil {
 		h.logger.Printf("Error encoding response: %v", err)
@@ -259,9 +239,7 @@ func (h *OrderHandler) GetNumberOfOrderedItems(w http.ResponseWriter, r *http.Re
 	}
 }
 
-// parseDate parses a date string in various formats
 func parseDate(dateStr string) (time.Time, error) {
-	// Try parsing different formats
 	formats := []string{
 		"2006-01-02", // YYYY-MM-DD
 		"02.01.2006", // DD.MM.YYYY
@@ -278,6 +256,5 @@ func parseDate(dateStr string) (time.Time, error) {
 		}
 	}
 
-	// If all parsing attempts failed, return the last error
 	return time.Time{}, err
 }

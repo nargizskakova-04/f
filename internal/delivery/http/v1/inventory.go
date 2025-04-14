@@ -33,9 +33,6 @@ func (h *InventoryHandler) CreateInventoryRequest(w http.ResponseWriter, r *http
 }
 
 func (h *InventoryHandler) GetInventoryResponse(w http.ResponseWriter, r *http.Request) {
-	// For GET requests, we typically don't need to decode the request body
-	// Instead, we directly call the service
-
 	inventoryItems, err := h.inventoryService.GetInventory(r.Context())
 	if err != nil {
 		h.logger.Println("method:GetInventoryRequest, function:GetInventory", err.Error())
@@ -54,7 +51,6 @@ func (h *InventoryHandler) GetInventoryResponse(w http.ResponseWriter, r *http.R
 }
 
 func (h *InventoryHandler) GetInventoryByIDResponse(w http.ResponseWriter, r *http.Request) {
-	// Extract ID from URL path (Go 1.22+ pattern matching)
 	id := r.PathValue("id")
 	if id == "" {
 		h.logger.Println("method:GetInventoryByIDRequest, function: missing id parameter")
@@ -62,12 +58,10 @@ func (h *InventoryHandler) GetInventoryByIDResponse(w http.ResponseWriter, r *ht
 		return
 	}
 
-	// Call service to get the inventory item
 	inventoryItem, err := h.inventoryService.GetInventoryByID(r.Context(), id)
 	if err != nil {
 		h.logger.Println("method:GetInventoryByIDRequest, function:GetInventoryByID", err.Error())
 
-		// Check if it's a "not found" error
 		if err == sql.ErrNoRows {
 			w.WriteHeader(http.StatusNotFound)
 		} else {
@@ -130,7 +124,6 @@ func (h *InventoryHandler) UpdateInventoryRequest(w http.ResponseWriter, r *http
 		statusCode := http.StatusInternalServerError
 		errorMessage := "Internal server error"
 
-		// Check for specific errors to provide better responses
 		if err.Error() == "no fields to update" {
 			statusCode = http.StatusBadRequest
 			errorMessage = "No fields to update"
@@ -156,7 +149,6 @@ func (h *InventoryHandler) CreateInventoryTransactionRequest(w http.ResponseWrit
 		return
 	}
 
-	// Validate transaction type
 	validTypes := map[string]bool{
 		"addition":   true,
 		"deduction":  true,
@@ -235,13 +227,11 @@ func (h *InventoryHandler) GetInventoryTransactionsResponse(w http.ResponseWrite
 }
 
 func (h *InventoryHandler) GetLeftOversResponse(w http.ResponseWriter, r *http.Request) {
-	// Parse query parameters
 	query := r.URL.Query()
 	sortBy := query.Get("sortBy")
 	pageStr := query.Get("page")
 	pageSizeStr := query.Get("pageSize")
 
-	// Set defaults and parse page parameters
 	page := 1
 	pageSize := 10
 
@@ -265,22 +255,16 @@ func (h *InventoryHandler) GetLeftOversResponse(w http.ResponseWriter, r *http.R
 		pageSize = parsedPageSize
 	}
 
-	// Clean and validate sortBy parameter
-	// The issue here is that the URL might have a format like "sortBy=quantity?page=1"
-	// where the query string contains another '?' instead of '&'
 	if strings.Contains(sortBy, "?") {
-		// Extract the actual sortBy value before any additional '?'
 		sortBy = strings.Split(sortBy, "?")[0]
 	}
 
-	// Now validate the clean sortBy parameter
 	if sortBy != "" && sortBy != "price" && sortBy != "quantity" {
 		h.logger.Println("method:GetLeftOversResponse, invalid sortBy parameter:", sortBy)
 		http.Error(w, "Invalid sortBy parameter. Must be 'price' or 'quantity'", http.StatusBadRequest)
 		return
 	}
 
-	// Call service to get leftovers
 	response, err := h.inventoryService.GetLeftOvers(r.Context(), sortBy, page, pageSize)
 	if err != nil {
 		h.logger.Println("method:GetLeftOversResponse, function:GetLeftOvers", err.Error())

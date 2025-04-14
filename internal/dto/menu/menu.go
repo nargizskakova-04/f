@@ -11,8 +11,6 @@ type MenuItemIngredient struct {
 	Unit         string  `json:"unit"`
 }
 
-// CreateMenuItemRequest represents the request for creating a new menu item
-// check
 type CreateMenuItemRequest struct {
 	Name                 string               `json:"name" validate:"required"`
 	Description          string               `json:"description"`

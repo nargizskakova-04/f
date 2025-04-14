@@ -23,7 +23,6 @@ func NewOrderRepository(db *sql.DB) *OrderRepository {
 	}
 }
 
-// CreateOrder inserts order and order items inside a transaction.
 func (repo *OrderRepository) CreateOrder(ctx context.Context, order entity.Order, items []entity.OrderItem) (string, error) {
 	var orderID string
 	orderQuery := `
@@ -63,7 +62,6 @@ func (repo *OrderRepository) CreateOrder(ctx context.Context, order entity.Order
 	return orderID, nil
 }
 
-// GetMenuItemPrice gets current price of the menu item
 func (repo *OrderRepository) GetMenuItemPrice(ctx context.Context, menuItemID string) (float64, error) {
 	var price float64
 	query := `SELECT price FROM menu_items WHERE menu_item_id = $1`
@@ -158,7 +156,7 @@ func (repo *OrderRepository) GetAllOrders(ctx context.Context) ([]entity.Order, 
 		if specialInstructionsNullable.Valid {
 			order.SpecialInstructions = json.RawMessage(specialInstructionsNullable.String)
 		} else {
-			order.SpecialInstructions = json.RawMessage(`{}`) // Пустой JSON объект вместо NULL
+			order.SpecialInstructions = json.RawMessage(`{}`)
 		}
 
 		orders = append(orders, order)
@@ -172,19 +170,14 @@ func (repo *OrderRepository) GetAllOrders(ctx context.Context) ([]entity.Order, 
 }
 
 func (repo *OrderRepository) UpdateOrder(ctx context.Context, orderID string, updates map[string]interface{}) error {
-	// Извлекаем и сохраняем change_reason, если есть
 	var changeReason string
 	if reasonVal, hasReason := updates["change_reason"]; hasReason {
 		changeReason = reasonVal.(string)
-		// Удаляем change_reason из updates, так как это не столбец в таблице orders
 		delete(updates, "change_reason")
 	}
 
-	// Проверяем, обновляется ли статус
 	statusUpdate, hasStatusUpdate := updates["status"]
 	if hasStatusUpdate {
-		// Если статус обновляется, нам нужно обработать его отдельно
-		// для записи в order_status_history
 		var oldStatus string
 		getStatusQuery := `SELECT status FROM orders WHERE order_id = $1`
 		err := repo.db.QueryRowContext(ctx, getStatusQuery, orderID).Scan(&oldStatus)
@@ -192,7 +185,6 @@ func (repo *OrderRepository) UpdateOrder(ctx context.Context, orderID string, up
 			return fmt.Errorf("get current status: %w", err)
 		}
 
-		// Добавляем запись в order_status_history
 		historyQuery := `
             INSERT INTO order_status_history 
             (order_id, old_status, new_status, change_reason)
@@ -205,29 +197,21 @@ func (repo *OrderRepository) UpdateOrder(ctx context.Context, orderID string, up
 		}
 	}
 
-	// Продолжаем только если есть поля для обновления
-	// после потенциального удаления change_reason
 	if len(updates) == 0 {
 		return nil
 	}
 
-	// Начинаем строить запрос
 	queryBuilder := strings.Builder{}
 	queryBuilder.WriteString("UPDATE orders SET ")
 
-	// Всегда обновляем поле updated_at
 	updates["updated_at"] = time.Now()
 
-	// Значения для передачи в запрос
 	values := []interface{}{}
 
-	// Отслеживаем индекс параметра
 	paramIndex := 1
 
-	// Отслеживаем, является ли это первым полем (для расстановки запятых)
 	isFirst := true
 
-	// Добавляем поля, которые нужно обновить
 	for field, value := range updates {
 		if !isFirst {
 			queryBuilder.WriteString(", ")
@@ -238,11 +222,9 @@ func (repo *OrderRepository) UpdateOrder(ctx context.Context, orderID string, up
 		isFirst = false
 	}
 
-	// Добавляем условие WHERE и параметр id
 	queryBuilder.WriteString(" WHERE order_id = $" + strconv.Itoa(paramIndex))
 	values = append(values, orderID)
 
-	// Выполняем запрос
 	_, err := repo.db.ExecContext(ctx, queryBuilder.String(), values...)
 	if err != nil {
 		return fmt.Errorf("update order: %w", err)
@@ -251,7 +233,6 @@ func (repo *OrderRepository) UpdateOrder(ctx context.Context, orderID string, up
 	return nil
 }
 
-// Add to OrderRepository
 func (repo *OrderRepository) GetAllOrderStatusHistory(ctx context.Context) ([]entity.OrderStatusHistory, error) {
 	query := `
         SELECT 
@@ -309,7 +290,6 @@ func (repo *OrderRepository) GetNumberOfOrderedItems(
 	ctx context.Context,
 	startDate, endDate *time.Time,
 ) (map[string]int, error) {
-	// Initialize the base query
 	query := `
 		SELECT m.name, SUM(oi.quantity) as total_quantity
 		FROM order_items oi
@@ -318,7 +298,6 @@ func (repo *OrderRepository) GetNumberOfOrderedItems(
 		WHERE 1=1
 	`
 
-	// Add date filters if provided
 	var args []interface{}
 	var argIndex int = 1
 
@@ -328,26 +307,22 @@ func (repo *OrderRepository) GetNumberOfOrderedItems(
 	}
 
 	if endDate != nil {
-		// Add one day to include the end date in the results (until end of the day)
 		endDatePlusDay := endDate.AddDate(0, 0, 1)
 		query += ` AND o.created_at < $` + repo.nextArgIndex(&argIndex)
 		args = append(args, endDatePlusDay)
 	}
 
-	// Group by menu item name
 	query += `
 		GROUP BY m.name
 		ORDER BY m.name
 	`
 
-	// Execute the query
 	rows, err := repo.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	// Process the results
 	result := make(map[string]int)
 
 	for rows.Next() {
@@ -368,7 +343,6 @@ func (repo *OrderRepository) GetNumberOfOrderedItems(
 	return result, nil
 }
 
-// Helper method to convert parameter index to string and increment it
 func (repo *OrderRepository) nextArgIndex(index *int) string {
 	current := *index
 	*index++
@@ -376,7 +350,6 @@ func (repo *OrderRepository) nextArgIndex(index *int) string {
 }
 
 func (repo *OrderRepository) GetOrderedItemsByDay(ctx context.Context, month time.Month, year int) ([]report.DayCount, error) {
-	// Calculate the start and end dates for the given month and year
 	startDate := time.Date(year, month, 1, 0, 0, 0, 0, time.UTC)
 	endDate := startDate.AddDate(0, 1, 0)
 
@@ -419,9 +392,7 @@ func (repo *OrderRepository) GetOrderedItemsByDay(ctx context.Context, month tim
 	return results, nil
 }
 
-// GetOrderedItemsByMonth retrieves the number of items ordered by month within a specified year
 func (repo *OrderRepository) GetOrderedItemsByMonth(ctx context.Context, year int) ([]report.MonthCount, error) {
-	// Calculate the start and end dates for the given year
 	startDate := time.Date(year, 1, 1, 0, 0, 0, 0, time.UTC)
 	endDate := startDate.AddDate(1, 0, 0)
 
@@ -449,7 +420,6 @@ func (repo *OrderRepository) GetOrderedItemsByMonth(ctx context.Context, year in
 	defer rows.Close()
 
 	var results []report.MonthCount
-	// Map of month numbers to month names
 	monthNames := map[int]string{
 		1:  "january",
 		2:  "february",

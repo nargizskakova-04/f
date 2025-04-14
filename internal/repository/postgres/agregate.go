@@ -8,7 +8,6 @@ import (
 	"frappuccino/internal/dto/report"
 )
 
-// GetTotalSales returns the total sales amount for the given date range and status
 func (repo *OrderRepository) GetTotalSales(ctx context.Context, startDate, endDate *time.Time, status string) (float64, int, error) {
 	query := `
 		SELECT 
@@ -21,7 +20,6 @@ func (repo *OrderRepository) GetTotalSales(ctx context.Context, startDate, endDa
 	var args []interface{}
 	var argIndex int = 1
 
-	// Add date filters if provided
 	if startDate != nil {
 		query += fmt.Sprintf(" AND created_at >= $%d", argIndex)
 		args = append(args, startDate)
@@ -29,20 +27,17 @@ func (repo *OrderRepository) GetTotalSales(ctx context.Context, startDate, endDa
 	}
 
 	if endDate != nil {
-		// Add one day to include the end date in the results (until end of the day)
 		endDatePlusDay := endDate.AddDate(0, 0, 1)
 		query += fmt.Sprintf(" AND created_at < $%d", argIndex)
 		args = append(args, endDatePlusDay)
 		argIndex++
 	}
 
-	// Add status filter if provided
 	if status != "" {
 		query += fmt.Sprintf(" AND status = $%d", argIndex)
 		args = append(args, status)
 	}
 
-	// Execute the query
 	var totalSales float64
 	var orderCount int
 	err := repo.db.QueryRowContext(ctx, query, args...).Scan(&totalSales, &orderCount)
@@ -53,9 +48,7 @@ func (repo *OrderRepository) GetTotalSales(ctx context.Context, startDate, endDa
 	return totalSales, orderCount, nil
 }
 
-// GetPopularItems returns the most popular menu items for the given date range
 func (repo *OrderRepository) GetPopularItems(ctx context.Context, startDate, endDate *time.Time, limit int) ([]report.PopularItem, int, float64, error) {
-	// Default limit if not specified
 	if limit <= 0 {
 		limit = 10
 	}
@@ -79,7 +72,6 @@ func (repo *OrderRepository) GetPopularItems(ctx context.Context, startDate, end
 	var args []interface{}
 	var argIndex int = 1
 
-	// Add date filters if provided
 	if startDate != nil {
 		query += fmt.Sprintf(" AND o.created_at >= $%d", argIndex)
 		args = append(args, startDate)
@@ -87,17 +79,14 @@ func (repo *OrderRepository) GetPopularItems(ctx context.Context, startDate, end
 	}
 
 	if endDate != nil {
-		// Add one day to include the end date in the results (until end of the day)
 		endDatePlusDay := endDate.AddDate(0, 0, 1)
 		query += fmt.Sprintf(" AND o.created_at < $%d", argIndex)
 		args = append(args, endDatePlusDay)
 		argIndex++
 	}
 
-	// Exclude cancelled orders
 	query += " AND o.status != 'cancelled'"
 
-	// Group by menu item, sort by quantity sold in descending order, and limit the results
 	query += `
 			GROUP BY 
 				m.menu_item_id, m.name
@@ -115,14 +104,12 @@ func (repo *OrderRepository) GetPopularItems(ctx context.Context, startDate, end
 
 	args = append(args, limit)
 
-	// Execute the query
 	rows, err := repo.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, 0, 0, fmt.Errorf("error querying popular items: %w", err)
 	}
 	defer rows.Close()
 
-	// Process the results
 	var items []report.PopularItem
 	var totalQuantity int
 	var totalRevenue float64
@@ -134,7 +121,6 @@ func (repo *OrderRepository) GetPopularItems(ctx context.Context, startDate, end
 		}
 		items = append(items, item)
 
-		// Accumulate totals
 		totalQuantity += item.Quantity
 		totalRevenue += item.TotalRevenue
 	}
@@ -143,7 +129,6 @@ func (repo *OrderRepository) GetPopularItems(ctx context.Context, startDate, end
 		return nil, 0, 0, fmt.Errorf("error iterating popular item rows: %w", err)
 	}
 
-	// Calculate percentages if there are any items
 	if totalRevenue > 0 {
 		for i := range items {
 			items[i].PercentOfSales = (items[i].TotalRevenue / totalRevenue) * 100

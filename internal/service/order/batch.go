@@ -8,9 +8,7 @@ import (
 	orderdto "frappuccino/internal/dto/order"
 )
 
-// BatchProcessOrders processes multiple orders concurrently with inventory consistency
 func (s *OrderService) BatchProcessOrders(ctx context.Context, req orderdto.BatchOrderRequest) (orderdto.BatchOrderResponse, error) {
-	// Initialize response
 	response := orderdto.BatchOrderResponse{
 		ProcessedOrders: make([]orderdto.BatchOrderResult, len(req.Orders)),
 		Summary: orderdto.BatchSummary{
@@ -18,28 +16,20 @@ func (s *OrderService) BatchProcessOrders(ctx context.Context, req orderdto.Batc
 		},
 	}
 
-	// Create a mutex for synchronized access to shared resources
 	var mutex sync.Mutex
 
-	// Create a wait group to wait for all goroutines to finish
 	var wg sync.WaitGroup
 	wg.Add(len(req.Orders))
 
-	// Store ingredient usage across all orders
 	ingredientUsage := make(map[string]float32)
 	ingredientNames := make(map[string]string)
 
-	// First phase: Validate all orders and calculate total ingredient requirements
-	// This pre-check helps avoid deadlocks and ensures we have enough inventory
 	for _, order := range req.Orders {
-		// For each order, check ingredient requirements
 		ingredients, err := s.calculateIngredientsNeeded(ctx, order.Items)
 		if err != nil {
-			// If we can't calculate ingredients, we'll reject the order in the processing phase
 			continue
 		}
 
-		// Add to total ingredient usage
 		mutex.Lock()
 		for id, usage := range ingredients {
 			ingredientUsage[id] += usage.Required
@@ -48,7 +38,6 @@ func (s *OrderService) BatchProcessOrders(ctx context.Context, req orderdto.Batc
 		mutex.Unlock()
 	}
 
-	// Check if we have enough inventory for the entire batch
 	insufficientIngredients := make(map[string]float32)
 	for id, required := range ingredientUsage {
 		inventory, err := s.inventoryRepo.GetInventoryByID(ctx, id)
@@ -61,21 +50,17 @@ func (s *OrderService) BatchProcessOrders(ctx context.Context, req orderdto.Batc
 		}
 	}
 
-	// Process each order concurrently
 	for i, order := range req.Orders {
-		// Capture iteration variables for goroutine
 		orderIndex := i
 		orderRequest := order
 
 		go func() {
 			defer wg.Done()
 
-			// Initialize result with customer name
 			result := orderdto.BatchOrderResult{
 				CustomerName: orderRequest.CustomerName,
 			}
 
-			// Check if we have enough inventory based on pre-check
 			orderIngredients, err := s.calculateIngredientsNeeded(ctx, orderRequest.Items)
 			if err != nil {
 				result.Status = "rejected"
@@ -88,7 +73,6 @@ func (s *OrderService) BatchProcessOrders(ctx context.Context, req orderdto.Batc
 				return
 			}
 
-			// Check if any ingredients are insufficient in the pre-check
 			var insufficientFound bool
 			for id, requirement := range orderIngredients {
 				if remaining, exists := insufficientIngredients[id]; exists {
@@ -112,7 +96,6 @@ func (s *OrderService) BatchProcessOrders(ctx context.Context, req orderdto.Batc
 				return
 			}
 
-			// Process the order with a transaction
 			orderID, total, err := s.processOrderWithTransaction(ctx, orderRequest)
 			if err != nil {
 				result.Status = "rejected"
@@ -125,12 +108,10 @@ func (s *OrderService) BatchProcessOrders(ctx context.Context, req orderdto.Batc
 				return
 			}
 
-			// Order successfully processed
 			result.Status = "accepted"
 			result.OrderID = orderID
 			result.Total = total
 
-			// Update response and summary atomically
 			mutex.Lock()
 			response.ProcessedOrders[orderIndex] = result
 			response.Summary.Accepted++
@@ -139,24 +120,19 @@ func (s *OrderService) BatchProcessOrders(ctx context.Context, req orderdto.Batc
 		}()
 	}
 
-	// Wait for all goroutines to finish
 	wg.Wait()
 
-	// After all orders are processed, collect inventory summary
 	for id, used := range ingredientUsage {
-		// Skip ingredients that weren't used successfully
 		if used == 0 {
 			continue
 		}
 
-		// Get current inventory state
 		inventory, err := s.inventoryRepo.GetInventoryByID(ctx, id)
 		if err != nil {
 			s.logger.Printf("Error getting inventory for summary: %v", err)
 			continue
 		}
 
-		// Add to summary
 		response.Summary.InventoryUpdates = append(response.Summary.InventoryUpdates, orderdto.InventorySummary{
 			IngredientID: id,
 			Name:         ingredientNames[id],
@@ -168,27 +144,20 @@ func (s *OrderService) BatchProcessOrders(ctx context.Context, req orderdto.Batc
 	return response, nil
 }
 
-// calculateIngredientsNeeded calculates the required ingredients for given order items
 func (s *OrderService) calculateIngredientsNeeded(ctx context.Context, items []orderdto.CreateOrderItem) (map[string]IngredientRequirement, error) {
 	requiredIngredients := make(map[string]IngredientRequirement)
 
-	// For each menu item in the order
 	for _, item := range items {
-		// Get ingredients required for this menu item
 		ingredients, err := s.menuRepo.GetMenuItemIngredients(ctx, item.MenuItemID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get ingredients for menu item %s: %w", item.MenuItemID, err)
 		}
 
-		// For each ingredient, add the required quantity to our map
 		for _, ing := range ingredients {
-			// Multiply by the quantity of items ordered
 			requiredQty := float32(ing.Quantity) * float32(item.Quantity)
 
-			// Get or initialize the requirement
 			req, exists := requiredIngredients[ing.IngredientID]
 			if !exists {
-				// Get inventory to get the name and available quantity
 				inventory, err := s.inventoryRepo.GetInventoryByID(ctx, ing.IngredientID)
 				if err != nil {
 					return nil, fmt.Errorf("failed to get inventory for ingredient %s: %w", ing.IngredientID, err)
@@ -203,7 +172,6 @@ func (s *OrderService) calculateIngredientsNeeded(ctx context.Context, items []o
 				}
 			}
 
-			// Add the required quantity
 			req.Required += requiredQty
 			requiredIngredients[ing.IngredientID] = req
 		}
@@ -211,6 +179,3 @@ func (s *OrderService) calculateIngredientsNeeded(ctx context.Context, items []o
 
 	return requiredIngredients, nil
 }
-
-// Reference to processOrderWithTransaction
-// The actual implementation is in batch_tx.go

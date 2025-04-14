@@ -1,27 +1,151 @@
-Найди команды для докера чтобы можно было смотреть что находится в базе данных
+☕ Coffee Boom
 
-deletes all images and so on 
-docker-compose down -v --rmi all
+Coffee Boom is a backend service for a fast-paced restaurant or café, designed to efficiently manage orders, menu items, inventory, and analytics — all powered by PostgreSQL and built with Go.
 
-pp_1 | http: 2025/03/28 11:17:58 Starting server on port 8080 app_1 | http: 2025/03/28 11:21:22 method:CreateMenuItemRequest, function:json decode invalid character '"' after object key:value pair app_1 | http: 2025/03/28 11:21:29 method:CreateMenuItemRequest, function:json decode invalid character '}' looking for beginning of object key string app_1 | http: 2025/03/28 11:21:34 method:CreateMenuItemRequest, function:json decode json: cannot unmarshal string into Go struct field CreateMenuItemRequest.categories of type []string
+From order processing to detailed sales reports and inventory tracking, Coffee Boom helps businesses stay organized, informed, and scalable.
+🌐 Overview
 
-{ "name":"kfgkedee", "description":"SS", "price":33, "categories":"DD", "allergens":"DD", "size":"small" }
-LF ()
+This system provides a RESTful API for managing a restaurant's day-to-day operations:
 
-{
-  "customer_name": "Alice Smith",
-  "special_instructions": {
-    "allergies": ["shellfish", "peanuts"],
-    "delivery_notes": "Leave at front desk"
-  },
-  "items": [
-    {
-      "menu_item_id": "35ad878e-ee19-405f-b70f-1b9b6a35f262",
-      "quantity": 2
-    },
-    {
-      "menu_item_id": "f6723aeb-785e-472d-af0f-9c750a9162d6",
-      "quantity": 1
-    }
-  ]
-}
+    Accept and manage customer orders
+
+    Track order statuses and history
+
+    Organize menu items and ingredients
+
+    Maintain real-time inventory levels
+
+    View detailed sales reports and search insights
+
+    Automatically track pricing and inventory changes
+
+Built with a focus on performance, reliability, and scalability.
+🧰 Tech Stack
+
+    Backend Language: Go (Golang)
+
+    Database: PostgreSQL
+
+    Containerization: Docker & Docker Compose
+
+    Architecture: Layered (Handlers → Services → Repositories)
+
+🚀 Getting Started
+1. Clone the Repository
+
+git clone https://github.com/your-username/coffee-boom.git
+cd coffee-boom
+
+2. Start the Application
+
+docker compose up
+
+The API will be available at:
+📍 http://localhost:8080
+🗃️ Key Features
+✅ Orders
+
+    Place new orders
+
+    Modify or cancel existing orders
+
+    Track order status and history
+
+    Close & archive completed orders
+
+🍽️ Menu Management
+
+    Add or remove menu items
+
+    Define ingredients, categories, and prices
+
+    Monitor changes in price over time
+
+📦 Inventory Management
+
+    Track current stock of ingredients
+
+    Record inventory usage automatically on orders
+
+    Generate reports on leftovers and transactions
+
+📊 Analytics & Reports
+
+    View sales totals
+
+    Analyze popular items
+
+    Filter data by period or category
+
+    Search orders and menu using full-text queries
+
+📑 API Endpoints
+Orders
+
+POST    /orders
+GET     /orders
+GET     /orders/{id}
+PUT     /orders/{id}
+DELETE  /orders/{id}
+POST    /orders/{id}/close
+
+Menu Items
+
+POST    /menu
+GET     /menu
+GET     /menu/{id}
+PUT     /menu/{id}
+DELETE  /menu/{id}
+
+Inventory
+
+POST    /inventory
+GET     /inventory
+GET     /inventory/{id}
+PUT     /inventory/{id}
+DELETE  /inventory/{id}
+
+Reports
+
+GET /reports/total-sales
+GET /reports/popular-items
+GET /orders/numberOfOrderedItems?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
+GET /reports/search?q=espresso&filter=menu,orders&minPrice=1000
+GET /reports/orderedItemsByPeriod?period=month&year=2025
+GET /inventory/getLeftOvers?sortBy=quantity&page=1&pageSize=10
+
+🧱 Database Structure
+
+The database schema is designed with normalization and scalability in mind:
+
+    Relational tables with foreign keys and constraints
+
+    Use of ENUM for predefined status/roles
+
+    JSONB for flexible fields (like special instructions)
+
+    ARRAY types for tags or labels
+
+    Historical tables for prices, status changes, and inventory logs
+
+All schema definitions and test data are initialized via init.sql.
+📦 Deployment
+
+Coffee Boom is fully containerized and ready to be deployed on any server or cloud provider supporting Docker.
+
+docker compose up -d
+
+Environment variables for the database can be configured in .env or passed directly into the docker-compose.yml file.
+🧪 Sample Data
+
+Out of the box, the service starts with:
+
+    ✅ 30+ orders
+
+    ✅ 10+ menu items
+
+    ✅ Full inventory setup
+
+    ✅ Sample pricing & order history
+
+    ✅ Full-text searchable content

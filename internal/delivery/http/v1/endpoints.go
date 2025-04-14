@@ -7,7 +7,7 @@ import (
 func setInventoryRoutes(handler *InventoryHandler, router *http.ServeMux) {
 	router.HandleFunc("POST /inventory", handler.CreateInventoryRequest)
 	router.HandleFunc("GET /inventory", handler.GetInventoryResponse)
-	router.HandleFunc("GET /inventory/{id}", handler.GetInventoryByIDResponse) // New endpoint
+	router.HandleFunc("GET /inventory/{id}", handler.GetInventoryByIDResponse)
 	router.HandleFunc("DELETE /inventory/{id}", handler.DeleteInventoryRequest)
 	router.HandleFunc("PUT /inventory/{id}", handler.UpdateInventoryRequest)
 	router.HandleFunc("POST /inventory/transactions", handler.CreateInventoryTransactionRequest)
@@ -18,15 +18,13 @@ func setInventoryRoutes(handler *InventoryHandler, router *http.ServeMux) {
 func setMenuRoutes(handler *MenuHandler, router *http.ServeMux) {
 	router.HandleFunc("POST /menu", handler.CreateMenuItemRequest)
 	router.HandleFunc("GET /menu", handler.GetMenuResponse)
-	router.HandleFunc("GET /menu/{id}", handler.GetMenuByIDResponse) // New endpoint
+	router.HandleFunc("GET /menu/{id}", handler.GetMenuByIDResponse)
 	router.HandleFunc("DELETE /menu/{id}", handler.DeleteMenuRequest)
 	router.HandleFunc("PUT /menu/{id}", handler.UpdateMenuRequest)
 	router.HandleFunc("GET /price-history", handler.GetAllPriceHistoryResponse)
-
 }
 
 func setOrderRoutes(handler *OrderHandler, router *http.ServeMux) {
-	// router.HandleFunc("GET /orders/", handler.GetOrderByID)
 	router.HandleFunc("GET /orders/{id}", handler.GetOrderByIDResponse)
 	router.HandleFunc("GET /orders", handler.GetOrderResponse)
 	router.HandleFunc("POST /orders", handler.CreateOrderRequest)
@@ -44,8 +42,3 @@ func setReportRoutes(handler *ReportHandler, router *http.ServeMux) {
 	router.HandleFunc("GET /reports/total-sales", handler.GetTotalSales)
 	router.HandleFunc("GET /reports/popular-items", handler.GetPopularItems)
 }
-
-// func SetOrderHandler(router *http.ServeMux, orderService order.ServiceInterface, logger *log.Logger) {
-// 	handler := NewOrderHandler(orderService)
-// 	setOrderRoutes(handler, router)
-// }

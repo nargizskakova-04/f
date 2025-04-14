@@ -2,8 +2,6 @@ package inventory
 
 import "time"
 
-// DTO = Data Transfer Object
-
 type CreateInventoryRequest struct {
 	Name         string  `json:"name"`
 	Quantity     float32 `json:"quantity"`
@@ -58,10 +56,3 @@ type GetLeftOversResponse struct {
 	TotalPages  int            `json:"totalPages"`
 	Data        []LeftOverItem `json:"data"`
 }
-
-// type UpdateInventoryRequest struct {
-// 	Name         string `json:"name"`
-// 	StockLevel   int    `json:"stock_level"`
-// 	UnitType     string `json:"unit_type"`
-// 	ReOrderLevel int    `json:"re_order_level"`
-// }

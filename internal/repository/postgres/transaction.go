@@ -4,15 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
 	"frappuccino/internal/entity"
 )
 
-// Transaction represents a database transaction with support for commit and rollback
 type Transaction struct {
 	tx *sql.Tx
 }
 
-// Begin starts a new transaction
 func (repo *OrderRepository) Begin(ctx context.Context) (*Transaction, error) {
 	tx, err := repo.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -21,17 +20,14 @@ func (repo *OrderRepository) Begin(ctx context.Context) (*Transaction, error) {
 	return &Transaction{tx: tx}, nil
 }
 
-// Commit commits the transaction
 func (t *Transaction) Commit() error {
 	return t.tx.Commit()
 }
 
-// Rollback rolls back the transaction
 func (t *Transaction) Rollback() error {
 	return t.tx.Rollback()
 }
 
-// CreateOrderWithTx creates an order within an existing transaction
 func (repo *OrderRepository) CreateOrderWithTx(ctx context.Context, tx *Transaction, order entity.Order, items []entity.OrderItem) (string, error) {
 	var orderID string
 	orderQuery := `
@@ -71,15 +67,12 @@ func (repo *OrderRepository) CreateOrderWithTx(ctx context.Context, tx *Transact
 	return orderID, nil
 }
 
-// UpdateInventoryWithTx updates inventory within a transaction
 func (repo *InventoryRepository) UpdateInventoryWithTx(ctx context.Context, tx *Transaction, updates map[string]interface{}, id string) error {
-	// Build query from updates
 	query, args := buildUpdateQuery("inventory", updates, "ingredient_id", id)
 	_, err := tx.tx.ExecContext(ctx, query, args...)
 	return err
 }
 
-// CreateInventoryTransactionWithTx creates an inventory transaction within a transaction
 func (repo *InventoryRepository) CreateInventoryTransactionWithTx(ctx context.Context, tx *Transaction, transaction entity.InventoryTransaction) error {
 	query := `
         INSERT INTO inventory_transactions 
@@ -95,7 +88,6 @@ func (repo *InventoryRepository) CreateInventoryTransactionWithTx(ctx context.Co
 	return err
 }
 
-// Helper function to build an UPDATE query from a map of updates
 func buildUpdateQuery(table string, updates map[string]interface{}, idField, idValue string) (string, []interface{}) {
 	query := fmt.Sprintf("UPDATE %s SET ", table)
 	var args []interface{}

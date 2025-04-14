@@ -5,13 +5,11 @@ import (
 	"net/http"
 )
 
-// ReportHandler handles report-related operations
 type ReportHandler struct {
 	logger        *log.Logger
 	reportService reportInterface
 }
 
-// NewReportHandler creates a new report handler
 func NewReportHandler(
 	reportService reportInterface,
 	logger *log.Logger,
@@ -22,7 +20,6 @@ func NewReportHandler(
 	}
 }
 
-// SetReportHandler sets up report-related routes
 func SetReportHandler(
 	router *http.ServeMux,
 	reportService reportInterface,

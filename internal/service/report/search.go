@@ -13,30 +13,27 @@ import (
 
 type SearchService struct {
 	searchRepo searchRepo
-	orderRepo  orderRepo // Add this line
+	orderRepo  orderRepo
 	logger     *log.Logger
 }
 
-// Update the constructor to accept orderRepo
 func NewSearchService(
 	searchRepo searchRepo,
-	orderRepo orderRepo, // Add this parameter
+	orderRepo orderRepo,
 	logger *log.Logger,
 ) *SearchService {
 	return &SearchService{
 		searchRepo: searchRepo,
-		orderRepo:  orderRepo, // Initialize this field
+		orderRepo:  orderRepo,
 		logger:     logger,
 	}
 }
 
-// Search performs a search operation based on parameters
 func (s *SearchService) Search(ctx context.Context, req report.SearchRequest) (report.SearchResponse, error) {
 	var response report.SearchResponse
 	var minPrice, maxPrice *float64
 	var err error
 
-	// Prepare price filters
 	if req.MinPrice > 0 {
 		minPrice = &req.MinPrice
 	}
@@ -45,27 +42,21 @@ func (s *SearchService) Search(ctx context.Context, req report.SearchRequest) (r
 		maxPrice = &req.MaxPrice
 	}
 
-	// Check if we should use keyword search
 	useKeywords := false
 	keywords := []string{}
 
-	// Check if query contains words enclosed in quotes
 	if strings.Contains(req.Query, "\"") {
-		// Skip keyword search when using quoted phrases
 		useKeywords = false
 	} else {
-		// Split query into individual keywords, filter empty words
 		for _, word := range strings.Fields(req.Query) {
-			if len(word) > 2 { // Skip very short words
+			if len(word) > 2 {
 				keywords = append(keywords, word)
 			}
 		}
 
-		// Use keyword search if we have multiple keywords
 		useKeywords = len(keywords) > 1
 	}
 
-	// Determine which entities to search based on filter parameter
 	searchMenu := true
 	searchOrders := true
 
@@ -77,14 +68,12 @@ func (s *SearchService) Search(ctx context.Context, req report.SearchRequest) (r
 			filterMap[strings.TrimSpace(f)] = true
 		}
 
-		// Update search flags based on filter
 		if !filterMap["all"] {
 			searchMenu = filterMap["menu"]
 			searchOrders = filterMap["orders"]
 		}
 	}
 
-	// Search menu items if needed
 	if searchMenu {
 		var menuItems []report.SearchResultMenuItem
 
@@ -96,14 +85,12 @@ func (s *SearchService) Search(ctx context.Context, req report.SearchRequest) (r
 
 		if err != nil {
 			s.logger.Printf("Error searching menu items: %v", err)
-			// Continue with search instead of returning error
 		} else {
 			response.MenuItems = menuItems
 			response.TotalMatches += len(menuItems)
 		}
 	}
 
-	// Search orders if needed
 	if searchOrders {
 		var orders []report.SearchResultOrder
 
@@ -115,7 +102,6 @@ func (s *SearchService) Search(ctx context.Context, req report.SearchRequest) (r
 
 		if err != nil {
 			s.logger.Printf("Error searching orders: %v", err)
-			// Continue with search instead of returning error
 		} else {
 			response.Orders = orders
 			response.TotalMatches += len(orders)
@@ -124,14 +110,13 @@ func (s *SearchService) Search(ctx context.Context, req report.SearchRequest) (r
 
 	return response, nil
 }
+
 func (s *SearchService) GetOrderedItemsByPeriod(ctx context.Context, req report.OrderedItemsByPeriodRequest) (report.OrderedItemsByPeriodResponse, error) {
 	var response report.OrderedItemsByPeriodResponse
 	response.Period = req.Period
 
-	// Parse year
 	var year int
 	if req.Year == "" {
-		// Default to current year if not specified
 		year = time.Now().Year()
 	} else {
 		var err error
@@ -143,7 +128,6 @@ func (s *SearchService) GetOrderedItemsByPeriod(ctx context.Context, req report.
 	response.Year = strconv.Itoa(year)
 
 	if req.Period == "day" {
-		// Parse month
 		if req.Month == "" {
 			return response, fmt.Errorf("month parameter is required when period is day")
 		}
@@ -170,7 +154,6 @@ func (s *SearchService) GetOrderedItemsByPeriod(ctx context.Context, req report.
 
 		response.Month = req.Month
 
-		// Get order data by day
 		dayCounts, err := s.orderRepo.GetOrderedItemsByDay(ctx, month, year)
 		if err != nil {
 			s.logger.Printf("Error getting ordered items by day: %v", err)
@@ -180,7 +163,6 @@ func (s *SearchService) GetOrderedItemsByPeriod(ctx context.Context, req report.
 		response.OrderedItems = dayCounts
 
 	} else if req.Period == "month" {
-		// Get order data by month
 		monthCounts, err := s.orderRepo.GetOrderedItemsByMonth(ctx, year)
 		if err != nil {
 			s.logger.Printf("Error getting ordered items by month: %v", err)

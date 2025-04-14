@@ -50,7 +50,6 @@ type OrderStatusHistoryResponse struct {
 	ChangeReason  string    `json:"change_reason"`
 }
 
-// Add to order package
 type CloseOrderRequest struct {
 	Reason string `json:"reason,omitempty"`
 }

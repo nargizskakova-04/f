@@ -47,21 +47,18 @@ func (s *InventoryService) CreateInventory(ctx context.Context, request inventor
 
 		if err := s.inventoryRepo.CreateInventoryTransaction(ctx, transaction); err != nil {
 			s.logger.Println("Failed to record inventory transaction:", err)
-			// Note: We don't return here since the inventory was already created successfully
 		}
 	}
 	return id, nil
 }
 
 func (s *InventoryService) GetInventory(ctx context.Context) ([]inventory.GetInventoryResponse, error) {
-	// Call the repository function to get all inventory items
 	items, err := s.inventoryRepo.GetInventory(ctx)
 	if err != nil {
 		s.logger.Println("Error retrieving inventory items:", err)
 		return nil, err
 	}
 
-	// Map entity.Inventory items to the response type
 	var response []inventory.GetInventoryResponse
 	for _, item := range items {
 		response = append(response, inventory.GetInventoryResponse{
@@ -99,14 +96,12 @@ func (s *InventoryService) GetInventoryByID(ctx context.Context, id string) (inv
 }
 
 func (s *InventoryService) DeleteInventory(ctx context.Context, id string) (string, error) {
-	// Get the inventory item first to check if it exists and has quantity
 	inventory, err := s.inventoryRepo.GetInventoryByID(ctx, id)
 	if err != nil {
 		s.logger.Println("Error retrieving inventory item:", err)
 		return "", err
 	}
 
-	// If there's quantity, record a deduction transaction
 	if inventory.Quantity > 0 {
 		transaction := entity.InventoryTransaction{
 			IngredientID:    id,
@@ -117,11 +112,9 @@ func (s *InventoryService) DeleteInventory(ctx context.Context, id string) (stri
 
 		if err := s.inventoryRepo.CreateInventoryTransaction(ctx, transaction); err != nil {
 			s.logger.Println("Failed to record inventory transaction for deletion:", err)
-			// Continue with deletion anyway
 		}
 	}
 
-	// Delete the inventory item
 	ingredient_id, err := s.inventoryRepo.DeleteInventory(ctx, id)
 	if err != nil {
 		s.logger.Println(err)
@@ -131,19 +124,15 @@ func (s *InventoryService) DeleteInventory(ctx context.Context, id string) (stri
 	return ingredient_id, nil
 }
 
-// Update the UpdateInventory method in the service layer
 func (s *InventoryService) UpdateInventory(ctx context.Context, request inventory.UpdateInventoryRequest, id string) (string, error) {
-	// First, get the current inventory to compare quantity changes
 	currentInventory, err := s.inventoryRepo.GetInventoryByID(ctx, id)
 	if err != nil {
 		s.logger.Println("Error retrieving current inventory:", err)
 		return "", err
 	}
 
-	// Create a map to store only the fields that need updating
 	updates := make(map[string]interface{})
 
-	// Add fields to the update map only if they're provided
 	if request.Name != nil {
 		updates["name"] = *request.Name
 	}
@@ -171,31 +160,25 @@ func (s *InventoryService) UpdateInventory(ctx context.Context, request inventor
 		updates["reorder_point"] = *request.ReorderPoint
 	}
 
-	// Always update the last_updated timestamp
 	updates["last_updated"] = time.Now()
 
-	// Don't proceed if there are no fields to update
 	if len(updates) == 1 && updates["last_updated"] != nil {
 		return "", errors.New("no fields to update")
 	}
 
-	// Call the repository with only the fields that need updating
 	id, err = s.inventoryRepo.UpdateInventory(ctx, updates, id)
 	if err != nil {
 		s.logger.Println(err)
 		return "", err
 	}
 
-	// If quantity changed, record the transaction
 	if quantityChanged {
 		quantityDifference := newQuantity - oldQuantity
 		transactionType := "addition"
 		if quantityDifference < 0 {
 			transactionType = "deduction"
-			// Make the quantity change positive for better readability in records
 			quantityDifference = -quantityDifference
 		} else if quantityDifference == 0 {
-			// If quantity didn't actually change, no need to record a transaction
 			return id, nil
 		}
 
@@ -208,7 +191,6 @@ func (s *InventoryService) UpdateInventory(ctx context.Context, request inventor
 
 		if err := s.inventoryRepo.CreateInventoryTransaction(ctx, transaction); err != nil {
 			s.logger.Println("Failed to record inventory transaction:", err)
-			// Note: We don't return an error here since the inventory was already updated successfully
 		}
 	}
 
@@ -216,7 +198,6 @@ func (s *InventoryService) UpdateInventory(ctx context.Context, request inventor
 }
 
 func (s *InventoryService) RecordInventoryTransaction(ctx context.Context, request inventory.CreateTransactionRequest) error {
-	// Validate the ingredient exists
 	_, err := s.inventoryRepo.GetInventoryByID(ctx, request.IngredientID)
 	if err != nil {
 		return errors.New("ingredient not found")
@@ -229,12 +210,10 @@ func (s *InventoryService) RecordInventoryTransaction(ctx context.Context, reque
 		Reason:          request.Reason,
 	}
 
-	// Record the transaction
 	if err := s.inventoryRepo.CreateInventoryTransaction(ctx, transaction); err != nil {
 		return err
 	}
 
-	// Update the inventory quantity
 	currentInventory, err := s.inventoryRepo.GetInventoryByID(ctx, request.IngredientID)
 	if err != nil {
 		return err
@@ -250,7 +229,6 @@ func (s *InventoryService) RecordInventoryTransaction(ctx context.Context, reque
 			return errors.New("insufficient inventory")
 		}
 	case "adjustment":
-		// For adjustments, the quantity_change is the new absolute value
 		newQuantity = request.QuantityChange
 	case "waste":
 		newQuantity = currentInventory.Quantity - request.QuantityChange
@@ -261,7 +239,6 @@ func (s *InventoryService) RecordInventoryTransaction(ctx context.Context, reque
 		return errors.New("invalid transaction type")
 	}
 
-	// Update the inventory
 	updates := map[string]interface{}{
 		"quantity":     newQuantity,
 		"last_updated": time.Now(),
@@ -272,7 +249,6 @@ func (s *InventoryService) RecordInventoryTransaction(ctx context.Context, reque
 }
 
 func (s *InventoryService) GetInventoryTransactions(ctx context.Context, ingredientID string) ([]inventory.TransactionResponse, error) {
-	// Validate the ingredient exists
 	_, err := s.inventoryRepo.GetInventoryByID(ctx, ingredientID)
 	if err != nil {
 		return nil, errors.New("ingredient not found")
@@ -298,29 +274,26 @@ func (s *InventoryService) GetInventoryTransactions(ctx context.Context, ingredi
 
 	return response, nil
 }
+
 func (s *InventoryService) GetLeftOvers(ctx context.Context, sortBy string, page, pageSize int) (inventory.GetLeftOversResponse, error) {
-	// Call repository to get paginated and sorted inventory items
 	items, totalCount, err := s.inventoryRepo.GetLeftOvers(ctx, sortBy, page, pageSize)
 	if err != nil {
 		s.logger.Println("Error retrieving inventory leftovers:", err)
 		return inventory.GetLeftOversResponse{}, err
 	}
 
-	// Calculate pagination details
-	totalPages := (totalCount + pageSize - 1) / pageSize // Ceiling division
+	totalPages := (totalCount + pageSize - 1) / pageSize
 	hasNextPage := page < totalPages
 
-	// Map entity.Inventory items to LeftOverItem DTOs
 	var leftoverItems []inventory.LeftOverItem
 	for _, item := range items {
 		leftoverItems = append(leftoverItems, inventory.LeftOverItem{
 			Name:     item.Name,
 			Quantity: item.Quantity,
-			Price:    item.UnitPrice * 100, // Convert to cents as in the example
+			Price:    item.UnitPrice * 100,
 		})
 	}
 
-	// Build and return the response
 	return inventory.GetLeftOversResponse{
 		CurrentPage: page,
 		HasNextPage: hasNextPage,

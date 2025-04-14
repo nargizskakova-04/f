@@ -19,13 +19,11 @@ func NewSearchRepository(db *sql.DB) *SearchRepository {
 	}
 }
 
-// SearchMenuItems searches menu items based on search criteria
 func (repo *SearchRepository) SearchMenuItems(
 	ctx context.Context,
 	query string,
 	minPrice, maxPrice *float64,
 ) ([]report.SearchResultMenuItem, error) {
-	// Build the query
 	sqlQuery := `
         SELECT 
             menu_item_id,
@@ -37,9 +35,8 @@ func (repo *SearchRepository) SearchMenuItems(
         WHERE to_tsvector('english', name || ' ' || COALESCE(description, '')) @@ plainto_tsquery('english', $1)
     `
 
-	// Add price filters if provided
 	args := []interface{}{query}
-	paramIndex := 2 // starting from second parameter since $1 is already used
+	paramIndex := 2
 
 	if minPrice != nil {
 		sqlQuery += fmt.Sprintf(" AND price >= $%d", paramIndex)
@@ -52,10 +49,8 @@ func (repo *SearchRepository) SearchMenuItems(
 		args = append(args, *maxPrice)
 	}
 
-	// Order by relevance and limit results
 	sqlQuery += " ORDER BY relevance DESC LIMIT 20"
 
-	// Execute query
 	rows, err := repo.db.QueryContext(ctx, sqlQuery, args...)
 	if err != nil {
 		return nil, fmt.Errorf("error searching menu items: %w", err)
@@ -84,13 +79,11 @@ func (repo *SearchRepository) SearchMenuItems(
 	return results, nil
 }
 
-// SearchOrders searches orders based on search criteria
 func (repo *SearchRepository) SearchOrders(
 	ctx context.Context,
 	query string,
 	minPrice, maxPrice *float64,
 ) ([]report.SearchResultOrder, error) {
-	// Build the query
 	sqlQuery := `
         WITH matching_orders AS (
             SELECT 
@@ -112,9 +105,8 @@ func (repo *SearchRepository) SearchOrders(
         JOIN menu_items mi ON oi.menu_item_id = mi.menu_item_id
     `
 
-	// Add price filters if provided
 	args := []interface{}{query}
-	paramIndex := 2 // starting from second parameter since $1 is already used
+	paramIndex := 2
 
 	if minPrice != nil {
 		sqlQuery += fmt.Sprintf(" WHERE mo.total_amount >= $%d", paramIndex)
@@ -129,14 +121,12 @@ func (repo *SearchRepository) SearchOrders(
 		args = append(args, *maxPrice)
 	}
 
-	// Group by order details and order by relevance
 	sqlQuery += `
         GROUP BY mo.order_id, mo.customer_name, mo.total_amount, mo.relevance
         ORDER BY mo.relevance DESC
         LIMIT 20
     `
 
-	// Execute query
 	rows, err := repo.db.QueryContext(ctx, sqlQuery, args...)
 	if err != nil {
 		return nil, fmt.Errorf("error searching orders: %w", err)
@@ -169,16 +159,13 @@ func (repo *SearchRepository) SearchOrders(
 	return results, nil
 }
 
-// SearchMenuItemsByKeywords searches menu items using individual keywords
 func (repo *SearchRepository) SearchMenuItemsByKeywords(
 	ctx context.Context,
 	keywords []string,
 	minPrice, maxPrice *float64,
 ) ([]report.SearchResultMenuItem, error) {
-	// Transform keywords into a tsquery format (word1 | word2 | word3)
 	tsquery := strings.Join(keywords, " | ")
 
-	// Build the query
 	sqlQuery := `
         SELECT 
             menu_item_id,
@@ -190,9 +177,8 @@ func (repo *SearchRepository) SearchMenuItemsByKeywords(
         WHERE to_tsvector('english', name || ' ' || COALESCE(description, '')) @@ to_tsquery('english', $1)
     `
 
-	// Add price filters if provided
 	args := []interface{}{tsquery}
-	paramIndex := 2 // starting from second parameter since $1 is already used
+	paramIndex := 2
 
 	if minPrice != nil {
 		sqlQuery += fmt.Sprintf(" AND price >= $%d", paramIndex)
@@ -205,10 +191,8 @@ func (repo *SearchRepository) SearchMenuItemsByKeywords(
 		args = append(args, *maxPrice)
 	}
 
-	// Order by relevance and limit results
 	sqlQuery += " ORDER BY relevance DESC LIMIT 20"
 
-	// Execute query
 	rows, err := repo.db.QueryContext(ctx, sqlQuery, args...)
 	if err != nil {
 		return nil, fmt.Errorf("error searching menu items by keywords: %w", err)
@@ -237,16 +221,13 @@ func (repo *SearchRepository) SearchMenuItemsByKeywords(
 	return results, nil
 }
 
-// SearchOrdersByKeywords searches orders using individual keywords
 func (repo *SearchRepository) SearchOrdersByKeywords(
 	ctx context.Context,
 	keywords []string,
 	minPrice, maxPrice *float64,
 ) ([]report.SearchResultOrder, error) {
-	// Transform keywords into a tsquery format (word1 | word2 | word3)
 	tsquery := strings.Join(keywords, " | ")
 
-	// Build the query
 	sqlQuery := `
         WITH matching_orders AS (
             SELECT 
@@ -268,9 +249,8 @@ func (repo *SearchRepository) SearchOrdersByKeywords(
         JOIN menu_items mi ON oi.menu_item_id = mi.menu_item_id
     `
 
-	// Add price filters if provided
 	args := []interface{}{tsquery}
-	paramIndex := 2 // starting from second parameter since $1 is already used
+	paramIndex := 2
 
 	if minPrice != nil {
 		sqlQuery += fmt.Sprintf(" WHERE mo.total_amount >= $%d", paramIndex)
@@ -285,14 +265,12 @@ func (repo *SearchRepository) SearchOrdersByKeywords(
 		args = append(args, *maxPrice)
 	}
 
-	// Group by order details and order by relevance
 	sqlQuery += `
         GROUP BY mo.order_id, mo.customer_name, mo.total_amount, mo.relevance
         ORDER BY mo.relevance DESC
         LIMIT 20
     `
 
-	// Execute query
 	rows, err := repo.db.QueryContext(ctx, sqlQuery, args...)
 	if err != nil {
 		return nil, fmt.Errorf("error searching orders by keywords: %w", err)

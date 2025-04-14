@@ -33,9 +33,6 @@ func (h *MenuHandler) CreateMenuItemRequest(w http.ResponseWriter, r *http.Reque
 }
 
 func (h *MenuHandler) GetMenuResponse(w http.ResponseWriter, r *http.Request) {
-	// For GET requests, we typically don't need to decode the request body
-	// Instead, we directly call the service
-
 	menuItems, err := h.menuService.GetMenuItem(r.Context())
 	if err != nil {
 		h.logger.Println("method:GetMenuItemRequest, function:GetMenuItem", err.Error())
@@ -54,7 +51,6 @@ func (h *MenuHandler) GetMenuResponse(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *MenuHandler) GetMenuByIDResponse(w http.ResponseWriter, r *http.Request) {
-	// Extract ID from URL path (Go 1.22+ pattern matching)
 	id := r.PathValue("id")
 	if id == "" {
 		h.logger.Println("method:GetMenuByIDRequest, function: missing id parameter")
@@ -62,12 +58,10 @@ func (h *MenuHandler) GetMenuByIDResponse(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Call service to get the menu item
 	menuItem, err := h.menuService.GetMenuByID(r.Context(), id)
 	if err != nil {
 		h.logger.Println("method:GetMenuByIDRequest, function:GetMenuByID", err.Error())
 
-		// Check if it's a "not found" error
 		if err == sql.ErrNoRows {
 			w.WriteHeader(http.StatusNotFound)
 		} else {
@@ -130,7 +124,6 @@ func (h *MenuHandler) UpdateMenuRequest(w http.ResponseWriter, r *http.Request) 
 		statusCode := http.StatusInternalServerError
 		errorMessage := "Internal server error"
 
-		// Check for specific errors to provide better responses
 		if err.Error() == "no fields to update" {
 			statusCode = http.StatusBadRequest
 			errorMessage = "No fields to update"
@@ -149,9 +142,6 @@ func (h *MenuHandler) UpdateMenuRequest(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *MenuHandler) GetAllPriceHistoryResponse(w http.ResponseWriter, r *http.Request) {
-	// For GET requests, we typically don't need to decode the request body
-	// Instead, we directly call the service
-
 	priceHistory, err := h.menuService.GetAllPriceHistory(r.Context())
 	if err != nil {
 		h.logger.Println("method:GetAllPriceHistoryRequest, function:GetAllPriceHistory", err.Error())

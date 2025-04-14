@@ -8,19 +8,15 @@ import (
 	"frappuccino/internal/dto/report"
 )
 
-// GetTotalSales handles the GET /reports/total-sales endpoint
 func (h *ReportHandler) GetTotalSales(w http.ResponseWriter, r *http.Request) {
-	// Parse query parameters
 	startDateStr := r.URL.Query().Get("startDate")
 	endDateStr := r.URL.Query().Get("endDate")
 	status := r.URL.Query().Get("status")
 
-	// Initialize request
 	req := report.TotalSalesRequest{
 		Status: status,
 	}
 
-	// Parse dates if provided
 	if startDateStr != "" {
 		startDate, err := parseDate(startDateStr)
 		if err != nil {
@@ -41,7 +37,6 @@ func (h *ReportHandler) GetTotalSales(w http.ResponseWriter, r *http.Request) {
 		req.EndDate = &endDate
 	}
 
-	// Get total sales
 	response, err := h.reportService.GetTotalSales(r.Context(), req)
 	if err != nil {
 		h.logger.Printf("Error getting total sales: %v", err)
@@ -49,7 +44,6 @@ func (h *ReportHandler) GetTotalSales(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Return response
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		h.logger.Printf("Error encoding total sales response: %v", err)
@@ -58,17 +52,13 @@ func (h *ReportHandler) GetTotalSales(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// GetPopularItems handles the GET /reports/popular-items endpoint
 func (h *ReportHandler) GetPopularItems(w http.ResponseWriter, r *http.Request) {
-	// Parse query parameters
 	startDateStr := r.URL.Query().Get("startDate")
 	endDateStr := r.URL.Query().Get("endDate")
 	limitStr := r.URL.Query().Get("limit")
 
-	// Initialize request
 	req := report.PopularItemsRequest{}
 
-	// Parse dates if provided
 	if startDateStr != "" {
 		startDate, err := parseDate(startDateStr)
 		if err != nil {
@@ -89,7 +79,6 @@ func (h *ReportHandler) GetPopularItems(w http.ResponseWriter, r *http.Request) 
 		req.EndDate = &endDate
 	}
 
-	// Parse limit if provided
 	if limitStr != "" {
 		limit, err := strconv.Atoi(limitStr)
 		if err != nil || limit < 1 {
@@ -100,7 +89,6 @@ func (h *ReportHandler) GetPopularItems(w http.ResponseWriter, r *http.Request) 
 		req.Limit = limit
 	}
 
-	// Get popular items
 	response, err := h.reportService.GetPopularItems(r.Context(), req)
 	if err != nil {
 		h.logger.Printf("Error getting popular items: %v", err)
@@ -108,7 +96,6 @@ func (h *ReportHandler) GetPopularItems(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Return response
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		h.logger.Printf("Error encoding popular items response: %v", err)
